@@ -2,7 +2,7 @@
 
 Personal portfolio, blog platform and admin dashboard built as a production-ready full-stack application.
 
-[🌐 Live Demo](https://portfolio-5ntl2y519-mattiagiulianis-projects.vercel.app/) · [💻 GitHub](https://github.com/mattiagiuliani) · [💼 LinkedIn](https://www.linkedin.com/in/mattia-giuliani-dev) · [𝕏 X](https://x.com/mattiacodes)
+[🌐 Live Demo](https://mattiagiuliani-portfolio.vercel.app/) · [💻 GitHub](https://github.com/mattiagiuliani) · [💼 LinkedIn](https://www.linkedin.com/in/mattia-giuliani-dev) · [𝕏 X](https://x.com/mattiacodes)
 
 ![Node.js](https://img.shields.io/badge/Node.js-22-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
 (![Express](https://img.shields.io/badge/Express-5-000000?style=for-the-badge&logo=express&logoColor=white)
