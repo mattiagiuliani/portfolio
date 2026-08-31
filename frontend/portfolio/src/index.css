@@ -1,0 +1,54 @@
+﻿@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* ─── Design tokens ──────────────────────────────────────────────────────────
+   All custom values flow through @theme so Tailwind generates utility classes.
+   bg-bg, text-primary, border-secondary/30, etc. all work automatically.
+──────────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* ── Backgrounds ── */
+  --color-bg:             #080810;
+  --color-surface:        #0e0e1a;
+  --color-surface-raised: #141428;
+
+  /* ── Accents ── */
+  --color-primary:   #a78bfa;   /* violet  — main identity */
+  --color-secondary: #38bdf8;   /* cyan    — tech / cloud */
+  --color-emerald:   #34d399;   /* emerald — success / progress */
+
+  /* ── Text ── */
+  --color-text:   #e2e2f0;
+  --color-muted:  #6b6b88;
+  --color-subtle: #3a3a55;
+
+  /* ── Typography ── */
+  --font-sans: 'Geist Variable', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Code', monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #080810;
+  color: #e2e2f0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Utility: monospaced text ─── */
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* ─── Subtle dot-grid background texture (optional, used in Hero) ─── */
+.bg-grid {
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px
+  );
+  background-size: 32px 32px;
+}
