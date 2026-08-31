@@ -2,8 +2,10 @@
 
 Personal portfolio, blog platform and admin dashboard built as a production-ready full-stack application.
 
+[🌐 Live Demo](https://portfolio-5ntl2y519-mattiagiulianis-projects.vercel.app/) · [💻 GitHub](https://github.com/mattiagiuliani) · [💼 LinkedIn](https://www.linkedin.com/in/mattia-giuliani-dev) · [𝕏 X](https://x.com/mattiacodes)
+
 ![Node.js](https://img.shields.io/badge/Node.js-22-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![Express](https://img.shields.io/badge/Express-4-000000?style=for-the-badge&logo=express&logoColor=white)
+(![Express](https://img.shields.io/badge/Express-5-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![JWT](https://img.shields.io/badge/JWT-Auth-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
@@ -30,8 +32,6 @@ Personal portfolio, blog platform and admin dashboard built as a production-read
 |:--------:|:--------:|
 | ![Messages](docs/screenshots/Admin_messages.png) | ![Projects](docs/screenshots/Admin_project.png) |
 
-> Add screenshots to `docs/screenshots/` to populate this section.
-
 ---
 
 ## English
@@ -41,6 +41,8 @@ Personal portfolio, blog platform and admin dashboard built as a production-read
 This is not a template. It started as a contact form and grew into a complete system: a public portfolio with a technical blog, a REST API, JWT-based authentication, and a private admin dashboard to manage everything without touching the codebase.
 
 The stack was chosen deliberately — no overcomplicated abstractions, no unnecessary dependencies. Each layer does one thing and does it well.
+
+> The admin dashboard is intentionally protected and is not accessible without valid credentials.
 
 ---
 
@@ -160,7 +162,7 @@ Copy `backend/.env.example` to `backend/.env` and fill in the values.
 | Variable | Description |
 |---|---|
 | `MONGODB_URI` | MongoDB connection string (local or Atlas) |
-| `JWT_SECRET` | Long random string — generate at [generate-secret.vercel.app/64](https://generate-secret.vercel.app/64) |
+| `JWT_SECRET` | Long random string used to sign authentication tokens | 
 | `FRONTEND_ORIGIN` | Allowed CORS origin |
 | `NODE_ENV` | `development` or `production` |
 | `ADMIN_EMAIL` | Initial admin email |
@@ -236,6 +238,8 @@ args:
 Questo non è un template. È partito come un semplice form di contatto ed è diventato un sistema completo: portfolio pubblico con blog tecnico, REST API, autenticazione JWT e dashboard admin privata per gestire tutto senza toccare il codice.
 
 Lo stack è stato scelto con criterio — nessuna astrazione inutile, nessuna dipendenza superflua.
+
+> La dashboard admin è intenzionalmente protetta e non è accessibile senza credenziali valide.
 
 ---
 
@@ -323,7 +327,7 @@ Copia `backend/.env.example` in `backend/.env` e compila i valori.
 | Variabile | Descrizione |
 |---|---|
 | `MONGODB_URI` | Stringa di connessione MongoDB |
-| `JWT_SECRET` | Stringa random lunga — genera su [generate-secret.vercel.app/64](https://generate-secret.vercel.app/64) |
+| `JWT_SECRET` | Stringa casuale lunga utilizzata per firmare i token di autenticazione |
 | `FRONTEND_ORIGIN` | Origine CORS consentita |
 | `NODE_ENV` | `development` o `production` |
 | `ADMIN_EMAIL` | Email admin iniziale |
