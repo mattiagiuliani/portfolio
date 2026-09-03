@@ -20,9 +20,9 @@ function AdminLayout() {
       <Sidebar />
 
       {/* Main content — offset by sidebar width */}
-      <div className="flex-1 flex flex-col ml-56 min-h-dvh">
+      <div className="flex-1 flex flex-col ml-14 sm:ml-56 min-h-dvh min-w-0">
         {/* Top bar */}
-        <header className="sticky top-0 z-20 flex items-center justify-between px-8 py-4 bg-bg/80 backdrop-blur-sm border-b border-white/5">
+        <header className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-8 py-4 bg-bg/80 backdrop-blur-sm border-b border-white/5">
           <h1 className="text-sm font-semibold text-white">{title}</h1>
           <span className="text-xs font-mono text-muted">
             {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -30,7 +30,7 @@ function AdminLayout() {
         </header>
 
         {/* Page content with per-route fade transition */}
-        <main className="flex-1 px-8 py-8">
+        <main className="flex-1 px-4 sm:px-8 py-6 sm:py-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

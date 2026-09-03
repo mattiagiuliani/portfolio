@@ -297,7 +297,7 @@ function AdminMessages() {
 
                 {/* Hover actions */}
                 <div
-                  className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0 mt-0.5"
+                  className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150 shrink-0 mt-0.5"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {msg.status !== 'read' && (

@@ -71,22 +71,24 @@ function Sidebar() {
   const inactiveClass = 'text-muted hover:text-white hover:bg-white/5'
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 w-56 flex flex-col bg-surface border-r border-white/5">
+    <aside className="fixed inset-y-0 left-0 z-30 w-14 sm:w-56 flex flex-col bg-surface border-r border-white/5">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-white/5">
+      <div className="px-3 sm:px-5 py-5 border-b border-white/5">
         <p className="text-lg font-extrabold text-white tracking-tight">
           MG<span className="text-primary">.</span>
-          <span className="ml-2 text-xs font-mono font-normal text-muted">admin</span>
+          <span className="hidden sm:inline ml-2 text-xs font-mono font-normal text-muted">admin</span>
         </p>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-1 sm:px-3 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map(({ label, to, exact, icon }) => (
           <NavLink
             key={to}
             to={to}
             end={exact}
+            title={label}
+            aria-label={label}
             className={({ isActive }) =>
               `${linkBase} ${isActive ? activeClass : inactiveClass}`
             }
@@ -96,7 +98,7 @@ function Sidebar() {
                 <span className={isActive ? 'text-primary' : 'text-muted group-hover:text-white'}>
                   {icon}
                 </span>
-                {label}
+                <span className="hidden sm:inline">{label}</span>
               </>
             )}
           </NavLink>
@@ -104,19 +106,21 @@ function Sidebar() {
       </nav>
 
       {/* User + logout */}
-      <div className="px-3 py-4 border-t border-white/5 space-y-1">
+      <div className="px-1 sm:px-3 py-4 border-t border-white/5 space-y-1">
         {/* View portfolio link */}
         <a
           href="/"
           target="_blank"
           rel="noreferrer"
+          title="View portfolio"
+          aria-label="View portfolio"
           className={`${linkBase} ${inactiveClass}`}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
             <path d="M9 2h5v5M14 2 8 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          View portfolio
+          <span className="hidden sm:inline">View portfolio</span>
         </a>
 
         {/* Divider */}
@@ -128,7 +132,7 @@ function Sidebar() {
             <div className="w-7 h-7 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary text-xs font-bold shrink-0">
               {user.name?.charAt(0).toUpperCase()}
             </div>
-            <div className="min-w-0">
+            <div className="hidden sm:block min-w-0">
               <p className="text-xs font-medium text-white truncate">{user.name}</p>
               <p className="text-xs font-mono text-muted truncate">{user.role}</p>
             </div>
@@ -139,12 +143,14 @@ function Sidebar() {
         <motion.button
           onClick={handleLogout}
           whileHover={{ x: 2 }}
+          title="Log out"
+          aria-label="Log out"
           className={`${linkBase} ${inactiveClass} text-red-400/70 hover:text-red-400 hover:bg-red-400/8`}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M6 14H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h3M11 11l3-3-3-3M14 8H6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          Log out
+          <span className="hidden sm:inline">Log out</span>
         </motion.button>
       </div>
     </aside>
