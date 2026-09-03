@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { authApi } from '../services/adminApi'
 import { AuthContext } from './authContext'
 
@@ -13,15 +13,18 @@ import { AuthContext } from './authContext'
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null)
   const [loading, setLoading] = useState(true)
+  const authRequestId = useRef(0)
 
   const checkAuth = useCallback(async () => {
+    const requestId = ++authRequestId.current
+
     try {
       const res = await authApi.getMe()
-      setUser(res.user)
+      if (requestId === authRequestId.current) setUser(res.user)
     } catch {
-      setUser(null) // 401 → not authenticated, no error to surface
+      if (requestId === authRequestId.current) setUser(null) // 401 → not authenticated, no error to surface
     } finally {
-      setLoading(false)
+      if (requestId === authRequestId.current) setLoading(false)
     }
   }, [])
 
@@ -29,12 +32,15 @@ export function AuthProvider({ children }) {
   useEffect(() => { checkAuth() }, [checkAuth])
 
   const login = async (email, password) => {
+    ++authRequestId.current
     const res = await authApi.login(email, password)
     setUser(res.user)
+    setLoading(false)
     return res
   }
 
   const logout = async () => {
+    ++authRequestId.current
     await authApi.logout()
     setUser(null)
   }

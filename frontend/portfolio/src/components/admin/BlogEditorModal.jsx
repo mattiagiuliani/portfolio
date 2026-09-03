@@ -172,7 +172,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.15 }}
-      className="fixed inset-0 z-50 flex items-start justify-center pt-4 px-4 pb-4 bg-black/70 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-2 sm:pt-4 px-2 sm:px-4 pb-2 sm:pb-4 bg-black/70 backdrop-blur-sm overflow-y-auto"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <motion.div
@@ -187,7 +187,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
         aria-label={isNew ? 'New article' : `Edit: ${post.title}`}
       >
         {/* ── Header ─────────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-3">
             <span className="text-xs font-mono text-subtle px-2 py-0.5 rounded border border-white/8">
               {isNew ? 'NEW' : 'EDIT'}
@@ -206,10 +206,10 @@ function BlogEditorModal({ post, onClose, onSaved }) {
         </div>
 
         {/* ── Body ───────────────────────────────────────────────────────────── */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col sm:flex-row min-h-0 overflow-y-auto sm:overflow-hidden">
 
           {/* Left: title + content */}
-          <div className="flex-1 flex flex-col p-6 gap-4 overflow-y-auto">
+          <div className="flex-1 min-w-0 flex flex-col p-4 sm:p-6 gap-4 overflow-y-auto">
             {/* Title */}
             <input
               type="text"
@@ -232,8 +232,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
               value={form.content}
               onChange={(e) => set('content', e.target.value)}
               placeholder={'Write your article in Markdown…\n\n# Heading\n\n**bold**, *italic*, `code`\n\n```js\nconsole.log("hello")\n```'}
-              className="flex-1 w-full bg-bg/50 border border-white/5 rounded-xl px-5 py-4 text-sm text-white/85 placeholder:text-subtle/50 font-mono leading-relaxed resize-none focus:outline-none focus:border-primary/30 transition-colors duration-200"
-              style={{ minHeight: '400px' }}
+              className="flex-1 w-full min-h-[320px] sm:min-h-[400px] bg-bg/50 border border-white/5 rounded-xl px-5 py-4 text-sm text-white/85 placeholder:text-subtle/50 font-mono leading-relaxed resize-none focus:outline-none focus:border-primary/30 transition-colors duration-200"
               spellCheck={false}
             />
 
@@ -245,7 +244,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
           </div>
 
           {/* Right: metadata sidebar */}
-          <aside className="w-64 shrink-0 border-l border-white/5 flex flex-col gap-5 p-5 overflow-y-auto">
+          <aside className="w-full sm:w-64 shrink-0 border-t sm:border-t-0 sm:border-l border-white/5 flex flex-col gap-5 p-4 sm:p-5 overflow-y-auto">
 
             {/* Status toggles */}
             <div className="flex flex-col gap-3 pb-5 border-b border-white/5">
@@ -318,7 +317,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
         </div>
 
         {/* ── Footer ─────────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-white/5 shrink-0 bg-bg/30">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 py-4 border-t border-white/5 shrink-0 bg-bg/30">
           {/* Word count */}
           <p className="text-xs font-mono text-subtle">
             {form.content.trim().split(/\s+/).filter(Boolean).length} words
@@ -326,7 +325,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
             {Math.max(1, Math.ceil(form.content.trim().split(/\s+/).filter(Boolean).length / 200))} min read
           </p>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
