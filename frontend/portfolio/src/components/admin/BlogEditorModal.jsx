@@ -52,6 +52,7 @@ function Toggle({ label, checked, onChange }) {
       <button
         type="button"
         role="switch"
+        aria-label={label}
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${
@@ -69,14 +70,8 @@ function Toggle({ label, checked, onChange }) {
 }
 
 // ─── Label + field wrapper ────────────────────────────────────────────────────
-function Field({ label, children }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <p className="text-xs font-mono text-muted">{label}</p>
-      {children}
-    </div>
-  )
-}
+import Field from './AdminField'
+import { createPortal } from 'react-dom'
 
 const inputCls =
   'w-full bg-bg border border-white/8 rounded-lg px-3 py-2 text-sm text-white placeholder:text-subtle focus:outline-none focus:border-primary/50 transition-colors duration-200'
@@ -145,7 +140,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
       published:  publishOverride !== null ? publishOverride : form.published,
       featured:   form.featured,
       tags:       form.tags.split(',').map((t) => t.trim()).filter(Boolean),
-      ...(form.excerpt.trim()    && { excerpt:    form.excerpt.trim() }),
+      excerpt: form.excerpt.trim(),
       coverImage: form.coverImage.trim(),
     }
 
@@ -166,7 +161,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
 
   const slugPreview = toSlugPreview(form.title)
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -216,6 +211,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
               value={form.title}
               onChange={(e) => set('title', e.target.value)}
               placeholder="Article title…"
+              aria-label="Article title"
               autoFocus
               className="w-full bg-transparent border-none outline-none text-2xl font-bold text-white placeholder:text-subtle/50 resize-none"
             />
@@ -230,6 +226,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
             {/* Markdown content */}
             <textarea
               value={form.content}
+              aria-label="Article content"
               onChange={(e) => set('content', e.target.value)}
               placeholder={'Write your article in Markdown…\n\n# Heading\n\n**bold**, *italic*, `code`\n\n```js\nconsole.log("hello")\n```'}
               className="flex-1 w-full min-h-[320px] sm:min-h-[400px] bg-bg/50 border border-white/5 rounded-xl px-5 py-4 text-sm text-white/85 placeholder:text-subtle/50 font-mono leading-relaxed resize-none focus:outline-none focus:border-primary/30 transition-colors duration-200"
@@ -357,7 +354,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
         </div>
 
       </motion.div>
-    </motion.div>
+    </motion.div>, document.body
   )
 }
 

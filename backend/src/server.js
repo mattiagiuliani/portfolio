@@ -1,3 +1,7 @@
+import PublicationJob from './models/PublicationJob.js'
+import Post from './models/Post.js'
+import Project from './models/Project.js'
+import Settings from './models/Settings.js'
 import dotenv from 'dotenv'
 import express from 'express'
 import cors from 'cors'
@@ -12,6 +16,7 @@ import postRoutes from './routes/postRoutes.js'
 import publicRoutes from './routes/publicRoutes.js'
 import errorHandler from './middleware/errorHandler.js'
 import { corsOptions } from './config/cors.js'
+import { startPublicationWorker } from './services/publicationQueue.js'
 
 // Local development uses the ignored .env.development file. Production relies
 // only on environment variables injected by the hosting provider.
@@ -64,8 +69,15 @@ app.use((_req, res) => res.status(404).json({ success: false, message: 'Not foun
 app.use(errorHandler)
 
 // ─── Start after DB connects ──────────────────────────────────────────────────
-connectDB().then(() => {
+connectDB().then(async () => {
+  // Collections and indexes must exist before the first transactional mutation.
+  await Promise.all([PublicationJob.init(), Post.init(), Project.init(), Settings.init()])
+  // Local diagnostics can authenticate against a shared DB without processing its jobs.
+  if (process.env.PUBLICATION_WORKER_ENABLED !== 'false') startPublicationWorker()
   app.listen(PORT, () =>
     console.log(`Server running on http://localhost:${PORT}`)
   )
+}).catch((error) => {
+  console.error('Unable to initialize backend:', error.message)
+  process.exitCode = 1
 })

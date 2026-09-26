@@ -1,5 +1,9 @@
+'use client'
+
 import { useState, useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import Link from 'next/link'
+import BrandMark from '../brand/BrandMark'
+import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { navLinks } from '../../data/navigation'
 import useActiveSection from '../../hooks/useActiveSection'
@@ -11,7 +15,7 @@ function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const scrollDirection = useScrollDirection()
   const activeSection = useActiveSection(sectionIds)
-  const location = useLocation()
+  const pathname = usePathname()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
@@ -21,23 +25,23 @@ function Navbar() {
 
   return (
     <motion.header
-      className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-10 py-5 transition-all duration-300 ${
+      className={`brand-nav fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-10 py-5 transition-all duration-300 ${
         scrolled
           ? 'bg-bg/80 backdrop-blur-md shadow-lg shadow-black/20 border-b border-white/5'
           : ''
       }`}
-      initial={{ y: -30, opacity: 0 }}
+      initial={false}
       animate={{
-        y: scrollDirection === 'down' ? -80 : 0,
-        opacity: scrollDirection === 'down' ? 0 : 1,
+        y: scrollDirection === 'down' && !menuOpen ? -110 : 0,
+        opacity: 1,
       }}
       transition={{ duration: 0.35, ease: 'easeInOut' }}
     >
       <Link
-        to="/"
+        href="/"
         className="text-xl font-extrabold text-white tracking-tight select-none"
       >
-        MG<span className="text-primary">.</span>
+        <BrandMark />
       </Link>
 
       {/* Desktop nav */}
@@ -45,11 +49,11 @@ function Navbar() {
         {navLinks.map(({ label, href }) => {
           // Route-based link (e.g. /blog) — use React Router Link
           if (href.startsWith('/')) {
-            const isActive = location.pathname.startsWith(href)
+            const isActive = pathname.startsWith(href)
             return (
               <Link
                 key={href}
-                to={href}
+                href={href}
                 className={`text-sm font-medium transition-colors duration-200 ${
                   isActive ? 'text-white' : 'text-muted hover:text-white'
                 }`}
@@ -75,7 +79,7 @@ function Navbar() {
               }`}
               whileHover={{ y: -1 }}
             >
-              <Link to={`/${href}`}>{label}</Link>
+              <Link href={`/${href}`}>{label}</Link>
               {isActive && (
                 <motion.span
                   layoutId="nav-indicator"
@@ -126,7 +130,7 @@ function Navbar() {
                 return (
                   <Link
                     key={href}
-                    to={href}
+                    href={href}
                     className="text-base font-medium text-muted hover:text-white transition-colors"
                     onClick={() => setMenuOpen(false)}
                   >
@@ -137,7 +141,7 @@ function Navbar() {
               return (
                 <Link
                   key={href}
-                  to={`/${href}`}
+                  href={`/${href}`}
                   className="text-base font-medium text-muted hover:text-white transition-colors"
                   onClick={() => setMenuOpen(false)}
                 >

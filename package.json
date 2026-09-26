@@ -1,0 +1,24 @@
+{
+  "name": "portfolio-quality",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "prepare": "husky",
+    "test": "npm run check && npm run test:e2e",
+    "lint": "npm --prefix frontend/portfolio run lint && npm --prefix backend run lint && npm run lint:e2e",
+    "lint:e2e": "node frontend/portfolio/node_modules/eslint/bin/eslint.js tests/e2e eslint.config.mjs",
+    "test:backend": "npm --prefix backend test",
+    "check": "npm run lint && npm run test:backend",
+    "test:e2e": "playwright test --config tests/e2e/playwright.config.mjs",
+    "test:e2e:admin": "npm run test:e2e -- --grep @admin",
+    "test:e2e:production": "npm run test:e2e -- --grep @production --project chromium-desktop",
+    "test:e2e:smoke": "npm run test:e2e -- --grep @admin --project chromium-desktop",
+    "test:e2e:report": "playwright show-report tests/e2e/artifacts/html",
+    "test:e2e:install": "playwright install chromium firefox webkit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.59.1",
+    "husky": "9.1.7"
+  }
+}

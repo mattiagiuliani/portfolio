@@ -1,3 +1,4 @@
+import { publicationTransaction } from '../middleware/publicationTransaction.js'
 import { Router } from 'express'
 import { body }   from 'express-validator'
 import verifyToken from '../middleware/verifyToken.js'
@@ -14,6 +15,7 @@ import {
   toggleProjectFeature, toggleProjectPublished,
 }                                                            from '../controllers/projectController.js'
 import { getSettings, updateSettings }                       from '../controllers/settingsController.js'
+import { getPublicationStatus, retryPublication }            from '../controllers/publicationController.js'
 import { CATEGORIES }                                        from '../models/Post.js'
 import { isValidBlogCoverImage }                              from '../utils/blogCoverImage.js'
 
@@ -23,6 +25,8 @@ router.use(verifyOrigin)
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
 router.get('/stats', getStats)
+router.get('/publication-jobs', getPublicationStatus)
+router.post('/publication-jobs/:id/retry', retryPublication)
 
 // ─── Messages ─────────────────────────────────────────────────────────────────
 router.get('/messages',               getMessages)
@@ -54,11 +58,11 @@ const requireTitleContentCategory = [
 
 router.get('/posts',               getAdminPosts)
 router.get('/posts/:id',           getAdminPostById)
-router.post('/posts',              requireTitleContentCategory, createPost)
-router.put('/posts/:id',           postValidators, updatePost)
-router.delete('/posts/:id',        deletePost)
-router.patch('/posts/:id/publish', togglePublish)
-router.patch('/posts/:id/feature', toggleFeature)
+router.post('/posts',              requireTitleContentCategory, publicationTransaction(createPost))
+router.put('/posts/:id',           postValidators, publicationTransaction(updatePost))
+router.delete('/posts/:id', publicationTransaction(deletePost))
+router.patch('/posts/:id/publish', publicationTransaction(togglePublish))
+router.patch('/posts/:id/feature', publicationTransaction(toggleFeature))
 
 // ─── Projects ─────────────────────────────────────────────────────────────────
 const projectValidators = [
@@ -79,11 +83,11 @@ const requireTitleDescription = [
 ]
 
 router.get('/projects',                   getProjects)
-router.post('/projects',                  requireTitleDescription, createProject)
-router.put('/projects/:id',               projectValidators, updateProject)
-router.delete('/projects/:id',            deleteProject)
-router.patch('/projects/:id/feature',     toggleProjectFeature)
-router.patch('/projects/:id/published',   toggleProjectPublished)
+router.post('/projects',                  requireTitleDescription, publicationTransaction(createProject))
+router.put('/projects/:id',               projectValidators, publicationTransaction(updateProject))
+router.delete('/projects/:id', publicationTransaction(deleteProject))
+router.patch('/projects/:id/feature', publicationTransaction(toggleProjectFeature))
+router.patch('/projects/:id/published', publicationTransaction(toggleProjectPublished))
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 router.get('/settings', getSettings)
@@ -94,6 +98,6 @@ router.put('/settings', [
   body('linkedinUrl').optional({ checkFalsy: true }).isURL(),
   body('twitterUrl').optional({ checkFalsy: true }).isURL(),
   body('resumeUrl').optional({ checkFalsy: true }).isURL(),
-], updateSettings)
+], publicationTransaction(updateSettings))
 
 export default router

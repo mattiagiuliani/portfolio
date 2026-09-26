@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { formatDate } from '../../lib/blogUtils'
+import { createPortal } from 'react-dom'
 
 // ─── Inline icons ─────────────────────────────────────────────────────────────
 const CloseIcon = () => (
@@ -41,7 +42,7 @@ function MessageModal({ message, onClose, onMarkRead, onArchive, onDelete, proce
     onClose()
   }
 
-  return (
+  return createPortal(
     // Backdrop — click outside to close
     <motion.div
       initial={{ opacity: 0 }}
@@ -136,7 +137,7 @@ function MessageModal({ message, onClose, onMarkRead, onArchive, onDelete, proce
           </button>
         </div>
       </motion.div>
-    </motion.div>
+    </motion.div>, document.body
   )
 }
 

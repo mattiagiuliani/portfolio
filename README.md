@@ -1,15 +1,17 @@
 # Mattia Giuliani — Portfolio
 
-Personal portfolio, blog platform and admin dashboard built as a production-ready full-stack application.
+Personal portfolio, blog platform and admin dashboard built as a full-stack application.
+
+Deployment and publication details: [Publishing guide](docs/PUBLISHING.md).
 
 [🌐 Live Demo](https://mattiagiuliani-portfolio.vercel.app/) · [💻 GitHub](https://github.com/mattiagiuliani) · [💼 LinkedIn](https://www.linkedin.com/in/mattia-giuliani-dev) · [𝕏 X](https://x.com/mattiacodes)
 
 ![Node.js](https://img.shields.io/badge/Node.js-22-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
-(![Express](https://img.shields.io/badge/Express-5-000000?style=for-the-badge&logo=express&logoColor=white)
+![Express](https://img.shields.io/badge/Express-5-000000?style=for-the-badge&logo=express&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
 ![JWT](https://img.shields.io/badge/JWT-Auth-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
-![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 ![Framer Motion](https://img.shields.io/badge/Framer_Motion-12-0055FF?style=for-the-badge&logo=framer&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
@@ -57,7 +59,7 @@ The stack was chosen deliberately — no overcomplicated abstractions, no unnece
 - express-validator for input sanitization
 
 **Frontend**
-- React 19 + Vite
+- React 19 + Next.js App Router
 - Tailwind CSS v4
 - Framer Motion
 - React Router v7
@@ -96,7 +98,7 @@ The stack was chosen deliberately — no overcomplicated abstractions, no unnece
 │   │   ├── sections/         Homepage sections
 │   │   └── services/         API layer (blogApi, adminApi, contactApi)
 │   ├── Dockerfile
-│   └── nginx.conf
+│   └── next.config.js
 │
 └── docker-compose.yml
 ```
@@ -134,14 +136,14 @@ cd portfolio
 
 # Backend
 cd backend
-cp .env.example .env   # fill in your values
+cp .env.example .env.development   # fill in your values
 npm install
 npm run dev            # http://localhost:5000
 
 # Frontend (separate terminal)
 cd frontend/portfolio
 npm install
-npm run dev            # http://localhost:5173
+npm run dev            # http://localhost:3000
 ```
 
 **Create the admin account** (run once):
@@ -151,13 +153,13 @@ cd backend
 node src/scripts/createAdmin.js
 ```
 
-Then open `http://localhost:5173/admin/login`.
+Then open `http://localhost:3000/admin/login`.
 
 ---
 
 ### Environment Variables
 
-Copy `backend/.env.example` to `backend/.env` and fill in the values.
+Copy `backend/.env.example` to `backend/.env.development` and fill in the values.
 
 | Variable | Description |
 |---|---|
@@ -172,7 +174,9 @@ The frontend reads one variable at build time:
 
 | Variable | Description |
 |---|---|
-| `VITE_API_URL` | Backend base URL |
+| `NEXT_PUBLIC_API_URL` | Backend base URL for browser-only admin and contact calls |
+| `PORTFOLIO_API_URL` | Server-only backend base URL for Next static generation and regeneration |
+| `REVALIDATION_SECRET` | Server-only shared secret for the protected Next invalidation handler |
 
 ---
 
@@ -180,6 +184,7 @@ The frontend reads one variable at build time:
 
 ```bash
 # Build and start everything
+# Configure PORTFOLIO_BUILD_API_URL and REVALIDATION_SECRET first (see docs/PUBLISHING.md)
 docker compose up --build
 
 # Frontend → http://localhost
@@ -191,7 +196,8 @@ For a production build, set the backend URL before building:
 ```yaml
 # docker-compose.yml
 args:
-  VITE_API_URL: https://your-backend.onrender.com
+  NEXT_PUBLIC_API_URL: https://your-backend.onrender.com
+  PORTFOLIO_API_URL: https://your-backend.onrender.com
 ```
 
 ---
@@ -208,11 +214,20 @@ args:
 **Frontend → Vercel**
 
 1. Import project → Root Directory: `frontend/portfolio`
-2. Framework: Vite (auto-detected)
-3. Add `VITE_API_URL` = your Render URL
-4. Deploy → copy the Vercel URL
+2. Framework: Next.js
+3. Add `NEXT_PUBLIC_API_URL` and `PORTFOLIO_API_URL` = your Render URL
+4. Add `REVALIDATION_SECRET` as a long random server-only value
+5. Deploy → copy the Vercel URL
 
 **Final step:** go back to Render and set `FRONTEND_ORIGIN` to your Vercel URL.
+Also set `PUBLIC_SITE_URL` to that URL, `FRONTEND_REVALIDATE_URL` to
+`https://your-site/api/internal/revalidate`, and the same `REVALIDATION_SECRET`
+used on Vercel. The persistent MongoDB publication worker runs in the Express
+process, scans pending jobs every 15 seconds, and resumes expired leases after a
+restart. A saved admin mutation returns publication status separately: accepted
+invalidation is not publication; only a warmed, verified route is `published`.
+The 60-second target applies only while Render's worker and Vercel are available;
+it is not an instant-publication guarantee.
 
 ---
 
@@ -254,7 +269,7 @@ Lo stack è stato scelto con criterio — nessuna astrazione inutile, nessuna di
 - express-validator per la sanitizzazione degli input
 
 **Frontend**
-- React 19 + Vite
+- React 19 + Next.js App Router
 - Tailwind CSS v4
 - Framer Motion
 - React Router v7
@@ -299,14 +314,14 @@ cd portfolio
 
 # Backend
 cd backend
-cp .env.example .env   # compila i valori
+cp .env.example .env.development   # compila i valori
 npm install
 npm run dev            # http://localhost:5000
 
 # Frontend (terminale separato)
 cd frontend/portfolio
 npm install
-npm run dev            # http://localhost:5173
+npm run dev            # http://localhost:3000
 ```
 
 **Crea il primo account admin** (una sola volta):
@@ -316,13 +331,13 @@ cd backend
 node src/scripts/createAdmin.js
 ```
 
-Poi apri `http://localhost:5173/admin/login`.
+Poi apri `http://localhost:3000/admin/login`.
 
 ---
 
 ### Variabili d'Ambiente
 
-Copia `backend/.env.example` in `backend/.env` e compila i valori.
+Copia `backend/.env.example` in `backend/.env.development` e compila i valori.
 
 | Variabile | Descrizione |
 |---|---|
@@ -337,7 +352,7 @@ Il frontend legge una sola variabile a build time:
 
 | Variabile | Descrizione |
 |---|---|
-| `VITE_API_URL` | URL base del backend |
+| `NEXT_PUBLIC_API_URL` | URL base del backend |
 
 ---
 
@@ -345,6 +360,7 @@ Il frontend legge una sola variabile a build time:
 
 ```bash
 # Build e avvio
+# Configure PORTFOLIO_BUILD_API_URL and REVALIDATION_SECRET first (see docs/PUBLISHING.md)
 docker compose up --build
 
 # Frontend → http://localhost
@@ -365,8 +381,8 @@ docker compose up --build
 **Frontend → Vercel**
 
 1. Importa il progetto → Root Directory: `frontend/portfolio`
-2. Framework: Vite (rilevato automaticamente)
-3. Aggiungi `VITE_API_URL` = URL di Render
+2. Framework: Next.js
+3. Aggiungi `NEXT_PUBLIC_API_URL` = URL di Render
 4. Deploy → copia l'URL Vercel
 
 **Ultimo passaggio:** torna su Render e imposta `FRONTEND_ORIGIN` con l'URL Vercel.
@@ -384,3 +400,21 @@ docker compose up --build
 - Helmet imposta gli header di sicurezza su ogni risposta
 - Gli input di ricerca regex sono escapati prima dell'uso (prevenzione ReDoS)
 - `.env` escluso da git tramite `.gitignore`
+
+
+### Test E2E e hook Git
+
+La suite dedicata si trova in [tests/e2e](tests/e2e/README.md). Dalla root:
+
+```sh
+npm ci
+npm --prefix backend ci
+npm --prefix frontend/portfolio ci
+npm run test:e2e:install
+npm run check
+npm run test:e2e
+```
+
+Husky esegue lint e test backend prima del commit, e gli E2E prima del push.
+I test usano dati temporanei; report HTML, JUnit e diagnostica sono in
+`tests/e2e/artifacts/`. Apri il report con `npm run test:e2e:report`.

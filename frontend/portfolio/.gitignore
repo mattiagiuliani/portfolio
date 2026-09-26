@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Next.js generated output
+.next/
+.next-verification/
+.next-admin-verification/
+out/
+next-env.d.ts
+.env*
+!.env.example

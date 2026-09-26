@@ -13,7 +13,7 @@ function Section({ id, children, className = '', tight = false }) {
       id={id}
       className={`${tight ? 'pt-0' : 'pt-24'} pb-24 ${className}`}
     >
-      <div className="max-w-5xl mx-auto px-6">{children}</div>
+      <div className="brand-container">{children}</div>
     </section>
   )
 }

@@ -5,18 +5,34 @@ export const skills = [
   },
   {
     category: 'Frontend',
-    items: ['React', 'HTML5', 'CSS3', 'TailwindCSS', 'Bootstrap'],
+    items: ['React', 'HTML5', 'CSS3', 'TailwindCSS', 'Bootstrap', 'React Bootstrap', 'React Router', 'Vite', 'Axios'],
   },
   {
     category: 'Backend',
-    items: ['Node.js', 'Express', 'REST APIs'],
+    items: ['Node.js', 'Express', 'REST APIs', 'OpenAPI', 'Swagger'],
   },
   {
     category: 'Database',
-    items: ['MongoDB'],
+    items: ['MongoDB', 'Mongoose'],
+  },
+  {
+    category: 'API Security',
+    items: ['JWT', 'HttpOnly Cookies', 'bcrypt', 'Zod', 'Helmet', 'CORS', 'Rate Limiting'],
+  },
+  {
+    category: 'Testing',
+    items: ['Vitest', 'Supertest', 'React Testing Library', 'Playwright', 'MongoMemoryServer'],
   },
   {
     category: 'Tools & DevOps',
-    items: ['Git', 'GitHub', 'Docker', 'Mongoose', 'Vite', 'Vercel', 'Render', 'WSL Ubuntu', 'Powershell', 'Azure', 'Foundry'],
-  }
+    items: ['Docker', 'Docker Compose', 'Nginx', 'Vercel', 'Render', 'WSL Ubuntu', 'PowerShell', 'Azure', 'Foundry'],
+  },
+  {
+    category: 'Workflow & Code Quality',
+    items: ['Git', 'GitHub', 'ESLint', 'Husky', 'lint-staged'],
+  },
+  {
+    category: 'Monitoring & Logging',
+    items: ['Sentry', 'Pino'],
+  },
 ]

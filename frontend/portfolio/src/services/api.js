@@ -1,5 +1,5 @@
-// Base URL from env — falls back to localhost for development
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+// Public browser API URL. Server-rendered public pages use publicApi.server.js.
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
 // ─── Blog API ─────────────────────────────────────────────────────────────────
 

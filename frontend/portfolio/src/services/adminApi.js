@@ -1,4 +1,5 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+// Next proxies these routes to Express; cookies stay first-party on every browser.
+const BASE_URL = ''
 
 /**
  * Core fetch wrapper for all admin API calls.
@@ -15,8 +16,14 @@ async function request(path, options = {}) {
     },
   })
 
-  const json = await res.json()
-  if (!res.ok) throw json
+  const json = await res.json().catch(() => ({ message: `Request failed (${res.status}). Please try again.` }))
+  if (!res.ok) {
+    if (res.status === 401 && path !== '/api/auth/login' && typeof window !== 'undefined') window.dispatchEvent(new Event('admin-session-expired'))
+    throw { ...json, status: res.status }
+  }
+  if (json.publication && typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('publication-updated'))
+  }
   return json
 }
 
@@ -74,4 +81,9 @@ export const dashboardApi = {
 export const settingsApi = {
   get:    () => request('/api/admin/settings'),
   update: (data) => request('/api/admin/settings', { method: 'PUT', body: JSON.stringify(data) }),
+}
+
+export const publicationApi = {
+  getAll: () => request('/api/admin/publication-jobs'),
+  retry: (id) => request(`/api/admin/publication-jobs/${id}/retry`, { method: 'POST' }),
 }

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { projectsApi } from '../../services/adminApi'
+import Field from './AdminField'
+import { createPortal } from 'react-dom'
 
 const CloseIcon = () => (
   <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
@@ -18,6 +20,7 @@ function Toggle({ label, checked, onChange }) {
       <button
         type="button"
         role="switch"
+        aria-label={label}
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${checked ? 'bg-primary' : 'bg-white/10'}`}
@@ -25,15 +28,6 @@ function Toggle({ label, checked, onChange }) {
         <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
       </button>
     </label>
-  )
-}
-
-function Field({ label, children }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <p className="text-xs font-mono text-muted">{label}</p>
-      {children}
-    </div>
   )
 }
 
@@ -84,9 +78,9 @@ function ProjectFormModal({ project, onClose, onSaved }) {
       featured:     form.featured,
       published:    form.published,
       order:        Number(form.order) || 0,
-      ...(form.githubUrl.trim() && { githubUrl: form.githubUrl.trim() }),
-      ...(form.liveUrl.trim()   && { liveUrl:   form.liveUrl.trim()   }),
-      ...(form.image.trim()     && { image:      form.image.trim()     }),
+      githubUrl: form.githubUrl.trim(),
+      liveUrl: form.liveUrl.trim(),
+      image: form.image.trim(),
     }
     try {
       isNew
@@ -101,7 +95,7 @@ function ProjectFormModal({ project, onClose, onSaved }) {
     }
   }
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       transition={{ duration: 0.15 }}
@@ -112,12 +106,12 @@ function ProjectFormModal({ project, onClose, onSaved }) {
         initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         exit={{ y: 10, opacity: 0 }} transition={{ duration: 0.2, ease: 'easeOut' }}
         className="w-full max-w-2xl bg-surface border border-white/8 rounded-2xl overflow-hidden shadow-2xl shadow-black/60"
-        role="dialog" aria-modal="true"
+        role="dialog" aria-modal="true" aria-label={isNew ? 'New project' : 'Edit project'}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
           <h2 className="text-sm font-semibold text-white">{isNew ? 'New project' : 'Edit project'}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-muted hover:text-white hover:bg-white/8 transition-colors">
+          <button onClick={onClose} aria-label="Close" disabled={saving} className="p-1.5 rounded-lg text-muted hover:text-white hover:bg-white/8 transition-colors">
             <CloseIcon />
           </button>
         </div>
@@ -191,7 +185,7 @@ function ProjectFormModal({ project, onClose, onSaved }) {
           </button>
         </div>
       </motion.div>
-    </motion.div>
+    </motion.div>, document.body
   )
 }
 

@@ -1,5 +1,5 @@
 export const getAllowedOrigins = () =>
-  (process.env.FRONTEND_ORIGIN || 'http://localhost:5173')
+  (process.env.FRONTEND_ORIGIN || 'http://localhost:3000')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean)

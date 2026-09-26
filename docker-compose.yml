@@ -11,9 +11,13 @@ services:
     build:
       context: ./frontend/portfolio
       args:
-        VITE_API_URL: http://localhost:5000
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
+        PORTFOLIO_API_URL: ${PORTFOLIO_BUILD_API_URL:?Set a backend URL reachable during the frontend build}
+    environment:
+      PORTFOLIO_API_URL: http://backend:5000
+      REVALIDATION_SECRET: ${REVALIDATION_SECRET:?Set the same secret as the backend}
     ports:
-      - "80:80"
+      - "80:3000"
     depends_on:
       - backend
     restart: unless-stopped

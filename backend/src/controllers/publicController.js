@@ -16,7 +16,11 @@ export const getPublicSettings = async (_req, res, next) => {
   try {
     const settings = await Settings.findOne({ singletonKey: 'default' }).lean()
       ?? await Settings.findOne({}).lean()
-    return res.json({ success: true, data: settings ?? new Settings().toObject() })
+    const defaults = new Settings().toObject()
+    // Unsaved defaults must have a stable public fingerprint across requests.
+    delete defaults._id
+    delete defaults.singletonKey
+    return res.json({ success: true, data: settings ?? defaults })
   } catch (err) {
     return next(err)
   }

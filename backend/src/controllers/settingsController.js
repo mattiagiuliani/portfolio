@@ -1,5 +1,6 @@
 import Settings from '../models/Settings.js'
 import { validationResult } from 'express-validator'
+import { enqueuePublication } from '../services/publicationQueue.js'
 
 const SETTINGS_KEY = 'default'
 
@@ -46,6 +47,7 @@ export const updateSettings = async (req, res, next) => {
 
   try {
     const settings = await getSingletonSettings(req.body)
-    res.json({ success: true, data: settings })
+    const publication = await enqueuePublication({ paths: ['/'] })
+    res.json({ success: true, data: settings, publication })
   } catch (err) { next(err) }
 }

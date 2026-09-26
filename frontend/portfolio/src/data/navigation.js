@@ -1,6 +1,7 @@
 // Navigation links — source of truth for the entire app
 export const navLinks = [
   { label: 'About', href: '#about' },
+  { label: 'Universe', href: '#universe' },
   { label: 'Skills', href: '#skills' },
   { label: 'Projects', href: '#projects' },
   { label: 'Contact', href: '#contact' },

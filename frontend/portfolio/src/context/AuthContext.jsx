@@ -30,6 +30,11 @@ export function AuthProvider({ children }) {
 
   // Run once on app boot to restore session
   useEffect(() => { checkAuth() }, [checkAuth])
+  useEffect(() => {
+    const expired = () => { ++authRequestId.current; setUser(null); setLoading(false) }
+    window.addEventListener('admin-session-expired', expired)
+    return () => window.removeEventListener('admin-session-expired', expired)
+  }, [])
 
   const login = async (email, password) => {
     ++authRequestId.current

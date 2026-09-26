@@ -1,5 +1,5 @@
+import PublicationStatus from './PublicationStatus'
 import { Outlet, useLocation } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
 import Sidebar from './Sidebar'
 
 /** Map route paths to human-readable page titles shown in the top bar */
@@ -16,7 +16,7 @@ function AdminLayout() {
   const title = pageTitles[location.pathname] ?? 'Admin'
 
   return (
-    <div className="min-h-dvh bg-bg flex">
+    <div className="admin-shell min-h-dvh bg-bg flex">
       <Sidebar />
 
       {/* Main content — offset by sidebar width */}
@@ -29,19 +29,10 @@ function AdminLayout() {
           </span>
         </header>
 
-        {/* Page content with per-route fade transition */}
+        {/* Keep the route outlet stable so navigation cannot reset form input. */}
         <main className="flex-1 px-4 sm:px-8 py-6 sm:py-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.18, ease: 'easeInOut' }}
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+          <PublicationStatus />
+          <Outlet />
         </main>
       </div>
     </div>

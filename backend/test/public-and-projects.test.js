@@ -1,15 +1,18 @@
+import PublicationJob from '../src/models/PublicationJob.js'
 import assert from 'node:assert/strict'
 import test, { afterEach } from 'node:test'
 import Project from '../src/models/Project.js'
 import { getPublicProjects } from '../src/controllers/publicController.js'
 import { createProject, updateProject, deleteProject } from '../src/controllers/projectController.js'
 
+const originalJobCreate = PublicationJob.create
 const originalFind = Project.find
 const originalFindById = Project.findById
 const originalFindByIdAndDelete = Project.findByIdAndDelete
 const originalSave = Project.prototype.save
 
 afterEach(() => {
+  PublicationJob.create = originalJobCreate
   Project.find = originalFind
   Project.findById = originalFindById
   Project.findByIdAndDelete = originalFindByIdAndDelete
@@ -35,6 +38,7 @@ test('public API requests only published projects', async () => {
 })
 
 test('projects CRUD creates, updates and deletes through controller responses', async () => {
+  PublicationJob.create = async (data) => ({ _id: 'job', status: 'queued', attempts: 0, ...data })
   Project.prototype.save = async function () { return this }
   const created = response()
   await createProject({ body: { title: 'New project', description: 'A valid description' } }, created, assert.fail)

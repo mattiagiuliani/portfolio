@@ -1,13 +1,15 @@
+'use client'
+
 import { useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { usePathname } from 'next/navigation'
 
 const HEADER_OFFSET = 96
 
 function ScrollToLocation() {
-  const { pathname, hash } = useLocation()
+  const pathname = usePathname()
 
   useEffect(() => {
-    const sectionId = hash ? decodeURIComponent(hash.slice(1)) : ''
+    const sectionId = window.location.hash ? decodeURIComponent(window.location.hash.slice(1)) : ''
 
     const frame = requestAnimationFrame(() => {
       const section = sectionId && document.getElementById(sectionId)
@@ -24,7 +26,7 @@ function ScrollToLocation() {
     })
 
     return () => cancelAnimationFrame(frame)
-  }, [pathname, hash])
+  }, [pathname])
 
   return null
 }

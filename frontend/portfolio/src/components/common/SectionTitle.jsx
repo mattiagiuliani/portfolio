@@ -1,10 +1,12 @@
+'use client'
+
 import { motion } from 'framer-motion'
 
 function SectionTitle({ children, mono = false }) {
   return (
     <motion.h2
       className={`relative inline-block text-3xl md:text-4xl font-bold text-white ${mono ? 'font-mono' : ''}`}
-      initial={{ opacity: 0, x: -20 }}
+      initial={false}
       whileInView={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
       viewport={{ once: true }}

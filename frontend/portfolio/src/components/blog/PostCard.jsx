@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom'
+'use client'
+
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { fadeUp } from '../../lib/motion'
 import CategoryPill from './CategoryPill'
@@ -20,12 +22,12 @@ function PostCard({ post, index = 0, featured = false }) {
     return (
       <motion.article
         variants={fadeUp}
-        initial="hidden"
+        initial={false}
         whileInView="show"
         viewport={{ once: true }}
         className="group relative rounded-2xl border border-white/5 bg-surface hover:border-primary/30 transition-colors duration-300 overflow-hidden"
       >
-        <Link to={`/blog/${slug}`} className="flex flex-col md:flex-row gap-0">
+        <Link href={`/blog/${slug}`} className="flex flex-col md:flex-row gap-0">
           {/* Content */}
           <div className="flex-1 p-8 md:p-10 flex flex-col gap-4">
             <div className="flex items-center gap-3">
@@ -73,13 +75,13 @@ function PostCard({ post, index = 0, featured = false }) {
   return (
     <motion.article
       variants={fadeUp}
-      initial="hidden"
+      initial={false}
       whileInView="show"
       viewport={{ once: true }}
       transition={{ delay: index * 0.06 }}
       className="group flex flex-col rounded-2xl border border-white/5 bg-surface hover:border-primary/30 hover:-translate-y-1 transition-all duration-300 overflow-hidden"
     >
-      <Link to={`/blog/${slug}`} className="flex flex-col flex-1 p-6 gap-4">
+      <Link href={`/blog/${slug}`} className="flex flex-col flex-1 p-6 gap-4">
         {coverImage && (
           <BlogCoverImage
             src={coverImage}

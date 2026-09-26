@@ -1,10 +1,13 @@
 import { validationResult } from 'express-validator'
 import Post from '../models/Post.js'
+import { enqueuePublication } from '../services/publicationQueue.js'
 
 const PUBLIC_SORTS = new Set(['-publishedAt', 'publishedAt', '-createdAt', 'createdAt', 'title', '-title'])
 const ADMIN_SORTS = new Set(['-createdAt', 'createdAt', '-updatedAt', 'updatedAt', 'title', '-title', 'publishedAt', '-publishedAt'])
 
 const allowedSort = (value, allowed, fallback) => (allowed.has(value) ? value : fallback)
+
+const queuePublication = (paths) => enqueuePublication({ paths })
 
 // ─── GET /api/posts ────────────────────────────────────────────────────────────
 // Supports: ?page= ?limit= ?category= ?tag= ?featured=true ?search= ?sort=
@@ -117,7 +120,10 @@ export const createPost = async (req, res, next) => {
     const post = new Post(req.body)
     await post.save()
 
-    res.status(201).json({ success: true, data: post })
+    const publication = post.published
+      ? await queuePublication(['/', '/blog', `/blog/${post.slug}`])
+      : { status: 'not-required' }
+    res.status(201).json({ success: true, data: post, publication })
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({
@@ -146,11 +152,21 @@ export const updatePost = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Post not found' })
     }
 
+    const oldSlug = post.slug
+    const wasPublished = post.published
     // `set()` + `save()` ensures pre-save hooks re-run for slug/readingTime
     post.set(req.body)
     await post.save()
 
-    res.json({ success: true, data: post })
+    const paths = new Set()
+    if (wasPublished || post.published) {
+      paths.add('/'); paths.add('/blog')
+      if (wasPublished) paths.add(`/blog/${oldSlug}`)
+      if (post.published) paths.add(`/blog/${post.slug}`)
+
+    }
+    const publication = paths.size ? await queuePublication([...paths]) : { status: 'not-required' }
+    res.json({ success: true, data: post, publication })
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({
@@ -171,7 +187,10 @@ export const deletePost = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Post not found' })
     }
 
-    res.json({ success: true, message: 'Post deleted successfully' })
+    const publication = post.published
+      ? await queuePublication(['/', '/blog', `/blog/${post.slug}`])
+      : { status: 'not-required' }
+    res.json({ success: true, message: 'Post deleted successfully', publication })
   } catch (err) {
     next(err)
   }
@@ -230,7 +249,8 @@ export const togglePublish = async (req, res, next) => {
     if (post.published && !post.publishedAt) post.publishedAt = new Date()
     await post.save()
 
-    res.json({ success: true, data: { _id: post._id, published: post.published, publishedAt: post.publishedAt } })
+    const publication = await queuePublication(['/', '/blog', `/blog/${post.slug}`])
+    res.json({ success: true, data: { _id: post._id, published: post.published, publishedAt: post.publishedAt }, publication })
   } catch (err) {
     next(err)
   }
@@ -242,11 +262,14 @@ export const toggleFeature = async (req, res, next) => {
     const post = await Post.findByIdAndUpdate(
       req.params.id,
       [{ $set: { featured: { $not: '$featured' } } }], // atomic toggle
-      { new: true, select: '_id featured' }
+      { new: true, select: '_id featured published slug title' }
     )
     if (!post) return res.status(404).json({ success: false, message: 'Post not found' })
 
-    res.json({ success: true, data: { _id: post._id, featured: post.featured } })
+    const publication = post.published
+      ? await queuePublication(['/', '/blog', `/blog/${post.slug}`])
+      : { status: 'not-required' }
+    res.json({ success: true, data: { _id: post._id, featured: post.featured }, publication })
   } catch (err) {
     next(err)
   }
