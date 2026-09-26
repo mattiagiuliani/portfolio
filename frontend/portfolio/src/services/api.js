@@ -20,62 +20,6 @@ export const blogApi = {
     if (!res.ok) throw json
     return json
   },
-
-  /**
-   * Fetch a single published post by its slug.
-   * @param {string} slug
-   * @returns {Promise<{ success: boolean, data: Post }>}
-   */
-  fetchPost: async (slug) => {
-    const res = await fetch(`${BASE_URL}/api/posts/${encodeURIComponent(slug)}`)
-    const json = await res.json()
-    if (!res.ok) throw json
-    return json
-  },
-
-  /**
-   * Create a new post.
-   * @param {Object} data - Post fields
-   */
-  createPost: async (data) => {
-    const res = await fetch(`${BASE_URL}/api/posts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    const json = await res.json()
-    if (!res.ok) throw json
-    return json
-  },
-
-  /**
-   * Update an existing post by its MongoDB ObjectId.
-   * @param {string} id - MongoDB ObjectId
-   * @param {Object} data - Fields to update
-   */
-  updatePost: async (id, data) => {
-    const res = await fetch(`${BASE_URL}/api/posts/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    const json = await res.json()
-    if (!res.ok) throw json
-    return json
-  },
-
-  /**
-   * Delete a post by its MongoDB ObjectId.
-   * @param {string} id - MongoDB ObjectId
-   */
-  deletePost: async (id) => {
-    const res = await fetch(`${BASE_URL}/api/posts/${id}`, {
-      method: 'DELETE',
-    })
-    const json = await res.json()
-    if (!res.ok) throw json
-    return json
-  },
 }
 
 // ─── Contact API ──────────────────────────────────────────────────────────────
@@ -98,22 +42,6 @@ export const contactApi = {
 
     if (!res.ok) throw json
 
-    return json
-  },
-}
-
-export const portfolioApi = {
-  fetchProjects: async () => {
-    const res = await fetch(`${BASE_URL}/api/projects`)
-    const json = await res.json()
-    if (!res.ok) throw json
-    return json
-  },
-
-  fetchSettings: async () => {
-    const res = await fetch(`${BASE_URL}/api/settings`)
-    const json = await res.json()
-    if (!res.ok) throw json
     return json
   },
 }

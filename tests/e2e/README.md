@@ -107,3 +107,11 @@ On failure, open the HTML report and its scenario log. Failed admin workflows al
 attach a screenshot and `trace.zip`; open the trace with
 `npx playwright show-trace <path-to-trace.zip>`. Timeout cleanup terminates only
 the process tree spawned by that scenario, not your local development server.
+
+## Verified locally — 2026-09-26
+
+The complete final run passed all 8 E2E tests with zero failures or skips:
+seven admin profiles and the production scenario. Frontend, backend and E2E lint
+passed, along with all 28 backend tests. Both installed Husky entrypoints were
+executed without making a commit or push. A controlled failing command also
+confirmed that both hooks propagate a nonzero exit status.

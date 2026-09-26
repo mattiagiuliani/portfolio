@@ -1,3 +1,24 @@
 node_modules/
 tests/e2e/artifacts/
 .husky/_/
+
+# Generated build and test output
+.next/
+.next-*/
+dist/
+dist-ssr/
+build/
+coverage/
+playwright-report/
+test-results/
+
+# Local configuration; retain distributable examples
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# OS/editor metadata
+.DS_Store
+Thumbs.db
+.idea/
