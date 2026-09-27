@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { authApi } from '../services/adminApi'
+import { advanceAuthGeneration, isCurrentAuthGeneration } from '../services/authGeneration.js'
 import { AuthContext } from './authContext'
 
 
@@ -13,41 +14,53 @@ import { AuthContext } from './authContext'
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null)
   const [loading, setLoading] = useState(true)
-  const authRequestId = useRef(0)
 
   const checkAuth = useCallback(async () => {
-    const requestId = ++authRequestId.current
+    const generation = advanceAuthGeneration()
 
     try {
       const res = await authApi.getMe()
-      if (requestId === authRequestId.current) setUser(res.user)
+      if (isCurrentAuthGeneration(generation)) setUser(res.user)
     } catch {
-      if (requestId === authRequestId.current) setUser(null) // 401 → not authenticated, no error to surface
+      if (isCurrentAuthGeneration(generation)) setUser(null) // 401 → not authenticated, no error to surface
     } finally {
-      if (requestId === authRequestId.current) setLoading(false)
+      if (isCurrentAuthGeneration(generation)) setLoading(false)
     }
   }, [])
 
   // Run once on app boot to restore session
   useEffect(() => { checkAuth() }, [checkAuth])
   useEffect(() => {
-    const expired = () => { ++authRequestId.current; setUser(null); setLoading(false) }
+    const expired = (event) => {
+      if (!isCurrentAuthGeneration(event.detail?.generation)) return
+      advanceAuthGeneration()
+      setUser(null)
+      setLoading(false)
+    }
     window.addEventListener('admin-session-expired', expired)
     return () => window.removeEventListener('admin-session-expired', expired)
   }, [])
 
   const login = async (email, password) => {
-    ++authRequestId.current
+    const generation = advanceAuthGeneration()
     const res = await authApi.login(email, password)
-    setUser(res.user)
-    setLoading(false)
+    if (isCurrentAuthGeneration(generation)) {
+      // Requests started while login was pending also predate this session.
+      advanceAuthGeneration()
+      setUser(res.user)
+      setLoading(false)
+    }
     return res
   }
 
   const logout = async () => {
-    ++authRequestId.current
+    const generation = advanceAuthGeneration()
     await authApi.logout()
-    setUser(null)
+    if (isCurrentAuthGeneration(generation)) {
+      advanceAuthGeneration()
+      setUser(null)
+      setLoading(false)
+    }
   }
 
   return (

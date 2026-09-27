@@ -22,8 +22,8 @@ const response = () => ({
   cleared: false,
   status(code) { this.statusCode = code; return this },
   json(body) { this.body = body; return this },
-  cookie(_name, value) { this.cookieValue = value; return this },
-  clearCookie() { this.cleared = true; return this },
+  cookie(name, value, options) { this.cookieName = name; this.cookieValue = value; this.cookieOptions = options; return this },
+  clearCookie(name) { this.cleared = true; this.clearedName = name; return this },
 })
 
 const runToken = (token, admin) => new Promise((resolve) => {
@@ -45,19 +45,24 @@ test('auth: login creates an HTTP-only session and logout clears it', async () =
   await login({ body: { email: admin.email, password: 'password123' } }, loginRes, assert.fail)
   assert.equal(loginRes.statusCode, 200)
   assert.ok(loginRes.cookieValue)
+  assert.equal(loginRes.cookieName, 'admin_token')
+  assert.equal(loginRes.cookieOptions.httpOnly, true)
 
   const logoutRes = response()
   logout({}, logoutRes)
   assert.equal(logoutRes.cleared, true)
+  assert.equal(logoutRes.clearedName, 'admin_token')
   assert.equal(logoutRes.body.success, true)
 })
 
-test('auth: expired and invalid tokens are rejected and clear the cookie', async () => {
+test('auth: expired, invalid and missing tokens are rejected without cookie mutation', async () => {
   const expired = jwt.sign({ id: 'id' }, process.env.JWT_SECRET, { expiresIn: -1 })
-  for (const token of [expired, 'not-a-token']) {
+  for (const token of [expired, 'not-a-token', undefined]) {
     const result = await runToken(token, null)
     assert.equal(result.res.statusCode, 401)
-    assert.equal(result.res.cleared, true)
+    assert.equal(result.res.cleared, false)
+    assert.equal(result.res.cookieValue, null)
+    assert.equal(result.res.body.message, token ? 'Session expired. Please log in again.' : 'Authentication required')
   }
 })
 
@@ -65,6 +70,12 @@ test('auth: disabled users are rejected and the current database role is used', 
   const token = jwt.sign({ id: 'id', role: 'admin' }, process.env.JWT_SECRET)
   const disabled = await runToken(token, { _id: 'id', isActive: false, role: 'admin' })
   assert.equal(disabled.res.statusCode, 401)
+  assert.equal(disabled.res.cleared, false)
+  assert.equal(disabled.res.cookieValue, null)
+  const missing = await runToken(token, null)
+  assert.equal(missing.res.statusCode, 401)
+  assert.equal(missing.res.cleared, false)
+  assert.equal(missing.res.cookieValue, null)
 
   const changedRole = await runToken(token, { _id: 'id', isActive: true, role: 'super_admin' })
   assert.equal(changedRole.req.admin.role, 'super_admin')

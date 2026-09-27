@@ -1,3 +1,6 @@
+import { getAuthGeneration, isCurrentAuthGeneration } from './authGeneration.js'
+import { runAuthTransition } from './authTransition.js'
+
 // Next proxies these routes to Express; cookies stay first-party on every browser.
 const BASE_URL = ''
 
@@ -6,7 +9,7 @@ const BASE_URL = ''
  * - Sends HTTP-only cookie automatically via credentials: 'include'
  * - Throws the parsed JSON body on non-2xx responses for unified error handling
  */
-async function request(path, options = {}) {
+async function request(path, options = {}, generation = getAuthGeneration()) {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     credentials: 'include', // required to send/receive the HTTP-only JWT cookie
@@ -18,7 +21,10 @@ async function request(path, options = {}) {
 
   const json = await res.json().catch(() => ({ message: `Request failed (${res.status}). Please try again.` }))
   if (!res.ok) {
-    if (res.status === 401 && path !== '/api/auth/login' && typeof window !== 'undefined') window.dispatchEvent(new Event('admin-session-expired'))
+    if (res.status === 401 && path !== '/api/auth/login' &&
+        isCurrentAuthGeneration(generation) && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('admin-session-expired', { detail: { generation } }))
+    }
     throw { ...json, status: res.status }
   }
   if (json.publication && typeof window !== 'undefined') {
@@ -30,9 +36,15 @@ async function request(path, options = {}) {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const authApi = {
   login:  (email, password) =>
-    request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  logout: () => request('/api/auth/logout', { method: 'POST' }),
+    authRequest('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  logout: () => authRequest('/api/auth/logout', { method: 'POST' }),
   getMe:  () => request('/api/auth/me'),
+}
+
+function authRequest(path, options) {
+  // Queueing must not give an older operation a newer transition's authority.
+  const generation = getAuthGeneration()
+  return runAuthTransition(() => request(path, options, generation))
 }
 
 // ─── Messages ─────────────────────────────────────────────────────────────────
