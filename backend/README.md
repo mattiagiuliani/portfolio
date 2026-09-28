@@ -2,6 +2,9 @@
 
 Express + MongoDB backend for the contact form.
 
+The authenticated image-upload endpoint and its server-only configuration are
+documented in [Media uploads — Checkpoint 1](../docs/MEDIA.md).
+
 ## Stack
 
 - Node.js (ES Modules)

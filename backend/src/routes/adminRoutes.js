@@ -18,10 +18,13 @@ import { getSettings, updateSettings }                       from '../controller
 import { getPublicationStatus, retryPublication }            from '../controllers/publicationController.js'
 import { CATEGORIES }                                        from '../models/Post.js'
 import { isValidBlogCoverImage }                              from '../utils/blogCoverImage.js'
+import { createMediaRouter } from './mediaRoutes.js'
 
+export function createAdminRouter(mediaOptions) {
 const router = Router()
 router.use(verifyToken, adminOnly)
 router.use(verifyOrigin)
+router.use('/media', createMediaRouter(mediaOptions))
 
 // ─── Dashboard ─────────────────────────────────────────────────────────────────
 router.get('/stats', getStats)
@@ -100,4 +103,7 @@ router.put('/settings', [
   body('resumeUrl').optional({ checkFalsy: true }).isURL(),
 ], publicationTransaction(updateSettings))
 
-export default router
+return router
+}
+
+export default createAdminRouter()

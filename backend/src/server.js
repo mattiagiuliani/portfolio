@@ -2,6 +2,7 @@ import PublicationJob from './models/PublicationJob.js'
 import Post from './models/Post.js'
 import Project from './models/Project.js'
 import Settings from './models/Settings.js'
+import MediaAsset from './models/MediaAsset.js'
 import dotenv from 'dotenv'
 import express from 'express'
 import cors from 'cors'
@@ -71,7 +72,7 @@ app.use(errorHandler)
 // ─── Start after DB connects ──────────────────────────────────────────────────
 connectDB().then(async () => {
   // Collections and indexes must exist before the first transactional mutation.
-  await Promise.all([PublicationJob.init(), Post.init(), Project.init(), Settings.init()])
+  await Promise.all([PublicationJob.init(), Post.init(), Project.init(), Settings.init(), MediaAsset.init()])
   // Local diagnostics can authenticate against a shared DB without processing its jobs.
   if (process.env.PUBLICATION_WORKER_ENABLED !== 'false') startPublicationWorker()
   app.listen(PORT, () =>
