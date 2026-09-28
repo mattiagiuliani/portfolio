@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { wakePublicationWorker } from '../services/publicationQueue.js'
 
 // Every Mongoose operation in the controller (including the outbox insert)
 // inherits the transaction session. Requires MongoDB replica set / Atlas.
@@ -19,6 +20,7 @@ export const publicationTransaction = (handler) => async (req, res, next) => {
       if (payload === undefined) throw new Error('Publication mutation produced no response')
       return { status, payload }
     })
+    if (result.payload.publication?.id && result.payload.publication.status === 'queued') wakePublicationWorker()
     // Never acknowledge a write before the content AND outbox commit.
     res.status(result.status).json(result.payload)
   } catch (error) { next(error) }

@@ -102,19 +102,42 @@ export async function processDuePublicationJobs() {
   for (const job of jobs) await processPublicationJob(job._id)
 }
 
+let wakeWorker = null
+
+// Best-effort local notification; persistent jobs and polling remain authoritative.
+export function wakePublicationWorker() {
+  wakeWorker?.()
+}
+
 export function startPublicationWorker() {
+  if (wakeWorker) throw new Error('Publication worker already started')
   let running = false
+  let pending = false
+  let stopped = false
   const tick = async () => {
+    if (stopped) return
+    pending = true
     if (running) return
     running = true
-    try { await processDuePublicationJobs() }
-    catch (error) { console.error('Publication worker:', error.message) }
-    finally { running = false }
+    try {
+      while (pending && !stopped) {
+        pending = false
+        try { await processDuePublicationJobs() }
+        catch (error) { console.error('Publication worker:', error.message) }
+      }
+    } finally { running = false }
   }
+  wakeWorker = () => { void tick() }
   void tick()
   const timer = setInterval(() => void tick(), pollMs())
   timer.unref()
-  return () => clearInterval(timer)
+  return () => {
+    if (stopped) return
+    stopped = true
+    pending = false
+    clearInterval(timer)
+    wakeWorker = null
+  }
 }
 
 export const getPublicationJobs = () => PublicationJob.find().sort({ createdAt: -1 }).limit(25).select('-leaseToken -checks').lean()
@@ -125,5 +148,6 @@ export async function retryPublicationJob(id) {
     { $set: { status: 'queued', nextAttemptAt: new Date(), lastError: '' } },
     { new: true }
   )
+  if (job) wakePublicationWorker()
   return job ? summarize(job) : null
 }
