@@ -112,6 +112,14 @@ try {
     const checkLayout = async (label) => {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${device.name}: overflow ${label}`)
     }
+    const waitForDashboardStats = async () => {
+      // Labels also render while loading. Each fixture metric must show its real
+      // value before replacing the document, and again after the reload.
+      for (const label of ['Unread Messages', 'Published Articles', 'Portfolio Projects', 'Featured Projects']) {
+        const card = page.getByText(label, { exact: true }).locator('../..')
+        await card.getByText('0', { exact: true }).waitFor({ state: 'visible' })
+      }
+    }
     const login = async () => {
       await page.getByLabel('Email address').fill(email)
       await page.getByLabel('Password', { exact: true }).fill(password)
@@ -123,9 +131,9 @@ try {
       await page.goto(`${base}/admin`)
       await page.waitForURL('**/admin/login')
       await login()
-      await page.getByText('Unread Messages', { exact: true }).waitFor()
+      await waitForDashboardStats()
       await reloadPage()
-      await page.getByText('Unread Messages', { exact: true }).waitFor()
+      await waitForDashboardStats()
       await checkLayout('dashboard')
 
       // Real project create/update/remove, including clearing an optional URL.
