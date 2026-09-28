@@ -4,6 +4,14 @@ import { runAuthTransition } from './authTransition.js'
 // Next proxies these routes to Express; cookies stay first-party on every browser.
 const BASE_URL = ''
 
+function emitPublicationUpdated(publication) {
+  const jobId = publication?.id ?? publication?._id
+  if (publication?.status !== 'queued' || !jobId || typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('publication-updated', {
+    detail: { jobId: String(jobId), status: publication.status },
+  }))
+}
+
 /**
  * Core fetch wrapper for all admin API calls.
  * - Sends HTTP-only cookie automatically via credentials: 'include'
@@ -27,9 +35,7 @@ async function request(path, options = {}, generation = getAuthGeneration()) {
     }
     throw { ...json, status: res.status }
   }
-  if (json.publication && typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('publication-updated'))
-  }
+  emitPublicationUpdated(json.publication)
   return json
 }
 
@@ -97,5 +103,9 @@ export const settingsApi = {
 
 export const publicationApi = {
   getAll: () => request('/api/admin/publication-jobs'),
-  retry: (id) => request(`/api/admin/publication-jobs/${id}/retry`, { method: 'POST' }),
+  retry: async (id) => {
+    const result = await request(`/api/admin/publication-jobs/${id}/retry`, { method: 'POST' })
+    emitPublicationUpdated(result.data)
+    return result
+  },
 }

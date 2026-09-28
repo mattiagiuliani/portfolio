@@ -1,7 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { publicationApi } from '../../services/adminApi'
+
+const FALLBACK_POLL_MS = 15000
+const OBSERVATION_POLL_MS = 750
+const OBSERVATION_WINDOW_MS = 8000
+const activeStatuses = new Set(['queued', 'invalidated', 'warming'])
 
 const labels = {
   queued: 'Saved — awaiting publication',
@@ -15,29 +20,137 @@ export default function PublicationStatus() {
   const [jobs, setJobs] = useState([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(null)
-  const refresh = useCallback(async () => {
-    try {
-      const result = await publicationApi.getAll()
-      setJobs(result.data)
-      setError('')
-    } catch { setError('Publication status is temporarily unavailable.') }
-  }, [])
+  const lifecycle = useRef(null)
+  const requests = useRef({ inFlight: null, queued: false, refresh: null })
 
   useEffect(() => {
-    void refresh()
-    const timer = setInterval(refresh, 15000)
-    window.addEventListener('publication-updated', refresh)
-    return () => {
-      clearInterval(timer)
-      window.removeEventListener('publication-updated', refresh)
+    const currentLifecycle = { active: true }
+    lifecycle.current = currentLifecycle
+    const isCurrent = () => currentLifecycle.active
+    const requestState = requests.current
+    let fallbackTimer
+    let observationTimer
+    let observationEndsAt = 0
+    const trackedJobs = new Set()
+
+    const stopObservation = () => {
+      clearTimeout(observationTimer)
+      observationTimer = undefined
+      trackedJobs.clear()
+      observationEndsAt = 0
     }
-  }, [refresh])
+
+    const scheduleObservation = () => {
+      clearTimeout(observationTimer)
+      observationTimer = undefined
+      if (!isCurrent() || !trackedJobs.size) return
+      const remaining = observationEndsAt - Date.now()
+      if (remaining <= 0) {
+        stopObservation()
+        return
+      }
+      observationTimer = setTimeout(() => {
+        observationTimer = undefined
+        if (Date.now() >= observationEndsAt) {
+          stopObservation()
+          return
+        }
+        void refresh()
+      }, Math.min(OBSERVATION_POLL_MS, remaining))
+    }
+
+    const updateTrackedJobs = (jobs) => {
+      const byId = new Map(jobs.map((job) => [String(job._id ?? job.id), job]))
+      for (const id of trackedJobs) {
+        const job = byId.get(id)
+        if (job && !activeStatuses.has(job.status)) trackedJobs.delete(id)
+      }
+      if (!trackedJobs.size) stopObservation()
+    }
+
+    const refresh = () => {
+      if (!isCurrent()) return Promise.resolve()
+      if (requestState.inFlight) {
+        requestState.queued = true
+        return requestState.inFlight
+      }
+
+      const operation = (async () => {
+        do {
+          requestState.queued = false
+          let result
+          try {
+            result = await publicationApi.getAll()
+          } catch {
+            if (isCurrent() && !requestState.queued) setError('Publication status is temporarily unavailable.')
+          }
+          if (!isCurrent()) return
+          if (requestState.queued) continue
+          if (result) {
+            setJobs(result.data)
+            setError('')
+            updateTrackedJobs(result.data)
+          }
+        } while (requestState.queued && isCurrent())
+      })()
+      requestState.inFlight = operation
+      void operation.then(() => {
+        if (requestState.inFlight === operation) requestState.inFlight = null
+        if (requestState.queued) {
+          requestState.queued = false
+          void requestState.refresh?.()
+        }
+        if (isCurrent()) scheduleObservation()
+      }, () => {
+        if (requestState.inFlight === operation) requestState.inFlight = null
+        if (requestState.queued) {
+          requestState.queued = false
+          void requestState.refresh?.()
+        }
+        if (isCurrent()) scheduleObservation()
+      })
+      return operation
+    }
+
+    const handlePublicationUpdated = (event) => {
+      const { jobId, status } = event.detail ?? {}
+      if (!jobId || status !== 'queued') return
+      const now = Date.now()
+      const id = String(jobId)
+      if (!trackedJobs.size || now >= observationEndsAt) {
+        stopObservation()
+        observationEndsAt = now + OBSERVATION_WINDOW_MS
+      }
+      trackedJobs.add(id)
+      void refresh()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && trackedJobs.size) void refresh()
+    }
+
+    requestState.refresh = refresh
+    void refresh()
+    fallbackTimer = setInterval(() => { void refresh() }, FALLBACK_POLL_MS)
+    window.addEventListener('publication-updated', handlePublicationUpdated)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      currentLifecycle.active = false
+      clearInterval(fallbackTimer)
+      clearTimeout(observationTimer)
+      trackedJobs.clear()
+      window.removeEventListener('publication-updated', handlePublicationUpdated)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      if (requestState.refresh === refresh) requestState.refresh = null
+    }
+  }, [])
 
   const retry = async (id) => {
+    const currentLifecycle = lifecycle.current
     setBusy(id)
-    try { await publicationApi.retry(id); await refresh() }
-    catch { setError('Retry unavailable. A worker may already be processing this job.') }
-    finally { setBusy(null) }
+    try { await publicationApi.retry(id) }
+    catch { if (currentLifecycle?.active) setError('Retry unavailable. A worker may already be processing this job.') }
+    finally { if (currentLifecycle?.active) setBusy(null) }
   }
 
   if (!jobs.length && !error) return null
