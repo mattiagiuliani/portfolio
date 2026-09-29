@@ -100,6 +100,17 @@ test('managed media association through real admin/public HTTP routes and public
       }
       const list = await api(`/api/${kind.route}`)
       assert.deepEqual(list.body.data[0][kind.reference], result[kind.reference])
+      const adminResult = await api(kind.name === 'post'
+        ? `/api/admin/posts/${saved.body.data._id}`
+        : '/api/admin/projects')
+      const adminRecord = kind.name === 'post' ? adminResult.body.data : adminResult.body.data[0]
+      assert.equal(String(adminRecord[kind.reference]), a.id)
+      assert.deepEqual(adminRecord[`${kind.reference}Preview`], {
+        url: a.url, width: a.width, height: a.height, format: a.format,
+      })
+      for (const forbiddenField of ['provider', 'key', 'createdBy', 'state', 'failureCode', '_id', 'bytes']) {
+        assert.equal(Object.hasOwn(adminRecord[`${kind.reference}Preview`], forbiddenField), false)
+      }
     })
 
     for (const [name, reference] of [

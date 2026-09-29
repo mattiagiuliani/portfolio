@@ -1,8 +1,13 @@
 # Media management
 
 Checkpoint 1 provides the backend upload primitive documented below. Checkpoint 2
-adds [content association](#content-association--checkpoint-2). There is no media
-picker, provider deletion, legacy migration or cleanup worker yet.
+adds [content association](#content-association--checkpoint-2). The admin Post and
+Project editors use a shared MediaField with the browser's native file picker for
+JPEG, PNG and WebP. Admins can preview, upload, retry, replace or remove a managed
+image association, edit its content-specific alt text, and save through the existing
+publication flow. Uploading creates an asset; it does not save it with content or
+publish it. Provider deletion, orphan cleanup, legacy migration, Markdown media,
+HEIC conversion, image galleries and image editing remain deferred.
 
 ## Request and security boundary
 
@@ -186,16 +191,23 @@ consumers. Valid managed media adds `coverMedia`/`imageMedia` as this safe objec
 
 No MediaAsset `_id`, provider, key, creator, lifecycle, failure code, byte count or
 registry timestamps are exposed publicly. Existing content IDs are unchanged.
-Admin responses retain the reference **ID** and stored legacy field, allowing a
-future editor to distinguish association from fallback without overwriting either.
-No full MediaAsset document is populated into a response. Lists resolve references
-in one batched registry query; legacy-only responses need no extra registry query.
+Admin responses retain the reference **ID** and stored legacy field, allowing the
+editor to distinguish association from fallback without overwriting either. Post
+detail and project-list responses add `coverMediaPreview` or `imageMediaPreview`
+when the reference resolves to a valid ready asset; each contains only `url`,
+`width`, `height` and `format` for rendering the current image. Invalid/missing
+references have no preview. No full MediaAsset document is populated into a
+response. Lists resolve references in one batched registry query; legacy-only
+responses need no extra registry query.
 
 Managed `alt` uses the content override when present, including `""` for decorative
 use; missing or `null` overrides fall back to the content title, matching the current
 blog's title-based alt semantics. The top-level content override remains available
-for legacy images too. Consuming custom alt/dimensions in frontend components is
-deferred to frontend integration; this checkpoint changes no UI.
+for legacy images too. Public Post and Project rendering uses the effective managed
+or legacy image and its content-specific alt text. The editor distinguishes an
+uploaded asset from a saved content association; publication status continues to
+come from the existing publication workflow. Image galleries and editing tools
+remain out of scope.
 
 Local legacy paths/HTTPS URLs are retained without migration. Existing Post cover
 input validation remains unchanged. Project writes additionally accept safe local

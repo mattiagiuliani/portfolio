@@ -1,7 +1,7 @@
 import Project from '../models/Project.js'
 import { validationResult } from 'express-validator'
 import { enqueuePublication } from '../services/publicationQueue.js'
-import { validateContentMedia } from '../services/media/contentMedia.js'
+import { validateContentMedia, serializeAdminContentMedia } from '../services/media/contentMedia.js'
 
 const queueProjectPublication = async (project, wasPublished = false) => {
   if (!project.published && !wasPublished) return { status: 'not-required' }
@@ -22,7 +22,7 @@ const sendValidationErrors = (req, res) => {
 export const getProjects = async (req, res, next) => {
   try {
     const projects = await Project.find({}).sort({ order: 1, createdAt: -1 }).lean()
-    res.json({ success: true, data: projects })
+    res.json({ success: true, data: await serializeAdminContentMedia(projects, 'project') })
   } catch (err) { next(err) }
 }
 

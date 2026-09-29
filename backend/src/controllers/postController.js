@@ -1,7 +1,7 @@
 import { validationResult } from 'express-validator'
 import Post from '../models/Post.js'
 import { enqueuePublication } from '../services/publicationQueue.js'
-import { validateContentMedia, serializeContentMedia } from '../services/media/contentMedia.js'
+import { validateContentMedia, serializeContentMedia, serializeAdminContentMedia } from '../services/media/contentMedia.js'
 
 const PUBLIC_SORTS = new Set(['-publishedAt', 'publishedAt', '-createdAt', 'createdAt', 'title', '-title'])
 const ADMIN_SORTS = new Set(['-createdAt', 'createdAt', '-updatedAt', 'updatedAt', 'title', '-title', 'publishedAt', '-publishedAt'])
@@ -100,7 +100,7 @@ export const getAdminPostById = async (req, res, next) => {
     const post = await Post.findById(req.params.id).lean()
     if (!post) return res.status(404).json({ success: false, message: 'Post not found' })
 
-    return res.json({ success: true, data: post })
+    return res.json({ success: true, data: (await serializeAdminContentMedia([post], 'post'))[0] })
   } catch (err) {
     return next(err)
   }

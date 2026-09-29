@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { blogAdminApi } from '../../services/adminApi'
 import { CATEGORIES } from '../../lib/blogUtils'
 import { isValidBlogCoverImage } from '../../lib/blogCoverImage'
+import MediaField from './MediaField'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const CloseIcon = () => (
@@ -26,6 +27,9 @@ const emptyForm = {
   tags:       '',
   excerpt:    '',
   coverImage: '',
+  coverMedia: null,
+  coverMediaPreview: null,
+  coverAlt: undefined,
   content:    '',
   published:  false,
   featured:   false,
@@ -38,6 +42,9 @@ function fieldFromPost(post) {
     tags:       (post.tags ?? []).join(', '),
     excerpt:    post.excerpt    ?? '',
     coverImage: post.coverImage ?? '',
+    coverMedia: post.coverMedia ? String(post.coverMedia._id ?? post.coverMedia) : null,
+    coverMediaPreview: post.coverMediaPreview ?? null,
+    coverAlt: post.coverAlt,
     content:    post.content    ?? '',
     published:  post.published  ?? false,
     featured:   post.featured   ?? false,
@@ -91,7 +98,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
   const [loadingPost, setLoadingPost] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
-  const [coverImageFailed, setCoverImageFailed] = useState(false)
+  const [mediaPending, setMediaPending] = useState(false)
 
   // Close on Escape
   useEffect(() => {
@@ -121,13 +128,20 @@ function BlogEditorModal({ post, onClose, onSaved }) {
 
   const set = useCallback((key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }))
-    if (key === 'coverImage') setCoverImageFailed(false)
   }, [])
 
   const handleSave = async (publishOverride = null) => {
     if (loadingPost) return
     if (!form.title.trim() || !form.content.trim() || !form.category) {
       setError('Title, content, and category are required.')
+      return
+    }
+    if (mediaPending) {
+      setError('Upload the selected image or cancel its selection before saving.')
+      return
+    }
+    if (form.coverImage.trim() && !isValidBlogCoverImage(form.coverImage.trim())) {
+      setError('Use an /images/blog/ path or an HTTPS URL for the legacy fallback.')
       return
     }
     setSaving(true)
@@ -142,6 +156,8 @@ function BlogEditorModal({ post, onClose, onSaved }) {
       tags:       form.tags.split(',').map((t) => t.trim()).filter(Boolean),
       excerpt: form.excerpt.trim(),
       coverImage: form.coverImage.trim(),
+      coverMedia: form.coverMedia,
+      coverAlt: form.coverAlt,
     }
 
     try {
@@ -286,29 +302,18 @@ function BlogEditorModal({ post, onClose, onSaved }) {
             </Field>
 
             {/* Cover image */}
-            <Field label="Cover image">
-              <input
-                type="text"
-                value={form.coverImage}
-                onChange={(e) => set('coverImage', e.target.value)}
-                placeholder="/images/blog/my-post.webp"
-                className={inputCls}
-              />
-              {form.coverImage && isValidBlogCoverImage(form.coverImage) && !coverImageFailed && (
-                <img
-                  src={form.coverImage}
-                  alt={form.title ? `Cover preview for ${form.title}` : 'Cover image preview'}
-                  className="w-full h-24 object-cover rounded-lg border border-white/8 mt-1"
-                  onError={() => setCoverImageFailed(true)}
-                />
-              )}
-              {form.coverImage && !isValidBlogCoverImage(form.coverImage) && (
-                <p className="text-xs font-mono text-red-400">Use /images/blog/filename.webp, .jpg, or .png, or an HTTPS URL.</p>
-              )}
-              {form.coverImage && isValidBlogCoverImage(form.coverImage) && coverImageFailed && (
-                <p className="text-xs font-mono text-red-400">Image preview could not be loaded. You can still save the post.</p>
-              )}
-            </Field>
+            <MediaField
+              label="Cover image"
+              mediaId={form.coverMedia}
+              mediaPreview={form.coverMediaPreview}
+              legacyUrl={form.coverImage}
+              alt={form.coverAlt}
+              defaultAlt={form.title}
+              onMediaChange={(mediaId, presentation) => setForm((prev) => ({ ...prev, coverMedia: mediaId, coverMediaPreview: presentation }))}
+              onLegacyUrlChange={(value) => set('coverImage', value)}
+              onAltChange={(value) => set('coverAlt', value)}
+              onPendingChange={setMediaPending}
+            />
 
           </aside>
         </div>
@@ -334,7 +339,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
             <button
               type="button"
               onClick={() => handleSave(false)}
-              disabled={saving || loadingPost}
+              disabled={saving || loadingPost || mediaPending}
               className="px-4 py-2 rounded-lg text-xs font-semibold border border-white/10 text-muted hover:text-white hover:border-white/20 transition-colors duration-200 disabled:opacity-40"
             >
               {loadingPost ? 'Loading…' : saving ? 'Saving…' : 'Save draft'}
@@ -342,7 +347,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
             <button
               type="button"
               onClick={() => handleSave(true)}
-              disabled={saving || loadingPost}
+              disabled={saving || loadingPost || mediaPending}
               className="px-4 py-2 rounded-lg text-xs font-semibold bg-primary hover:bg-primary/90 text-white transition-colors duration-200 disabled:opacity-40 flex items-center gap-2"
             >
               {saving && (

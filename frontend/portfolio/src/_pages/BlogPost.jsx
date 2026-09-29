@@ -13,7 +13,8 @@ import BlogCoverImage from '../components/blog/BlogCoverImage'
 // ─── Main page ────────────────────────────────────────────────────────────────
 function BlogPost({ post }) {
 
-  const { title, content, excerpt, category, tags = [], publishedAt, readingTime, coverImage } = post
+  const { title, content, excerpt, category, tags = [], publishedAt, readingTime, coverImage, coverMedia, coverAlt } = post
+  const coverAltText = coverMedia?.alt ?? coverAlt ?? title
 
   // ─── Article ─────────────────────────────────────────────────────────────────
   return (
@@ -92,7 +93,7 @@ function BlogPost({ post }) {
             >
               <BlogCoverImage
                 src={coverImage}
-                alt={title}
+                alt={coverAltText}
                 className="w-full object-cover max-h-80"
                 loading="lazy"
               />

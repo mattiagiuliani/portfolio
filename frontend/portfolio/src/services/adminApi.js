@@ -18,11 +18,12 @@ function emitPublicationUpdated(publication) {
  * - Throws the parsed JSON body on non-2xx responses for unified error handling
  */
 async function request(path, options = {}, generation = getAuthGeneration()) {
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     credentials: 'include', // required to send/receive the HTTP-only JWT cookie
     headers: {
-      'Content-Type': 'application/json',
+      ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...options.headers,
     },
   })
@@ -87,6 +88,14 @@ export const projectsApi = {
   remove:           (id)       => request(`/api/admin/projects/${id}`,         { method: 'DELETE' }),
   toggleFeature:    (id)       => request(`/api/admin/projects/${id}/feature`, { method: 'PATCH' }),
   togglePublished:  (id)       => request(`/api/admin/projects/${id}/published`, { method: 'PATCH' }),
+}
+
+export const mediaApi = {
+  upload: (file, { signal } = {}) => {
+    const body = new FormData()
+    body.append('file', file, file.name)
+    return request('/api/admin/media', { method: 'POST', body, signal })
+  },
 }
 
 // ─── Dashboard stats ──────────────────────────────────────────────────────────

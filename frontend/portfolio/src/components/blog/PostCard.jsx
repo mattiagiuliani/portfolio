@@ -16,7 +16,8 @@ import BlogCoverImage from './BlogCoverImage'
  *  featured — renders a larger horizontal layout
  */
 function PostCard({ post, index = 0, featured = false }) {
-  const { title, slug, excerpt, coverImage, category, tags = [], publishedAt, readingTime } = post
+  const { title, slug, excerpt, coverImage, coverMedia, coverAlt, category, tags = [], publishedAt, readingTime } = post
+  const coverAltText = coverMedia?.alt ?? coverAlt ?? title
 
   if (featured) {
     return (
@@ -61,7 +62,7 @@ function PostCard({ post, index = 0, featured = false }) {
             <div className="md:w-2/5">
               <BlogCoverImage
                 src={coverImage}
-                alt={title}
+                alt={coverAltText}
                 className="h-52 w-full object-cover md:h-full"
                 loading="lazy"
               />
@@ -85,7 +86,7 @@ function PostCard({ post, index = 0, featured = false }) {
         {coverImage && (
           <BlogCoverImage
             src={coverImage}
-            alt={title}
+            alt={coverAltText}
             className="h-40 w-full rounded-xl object-cover"
             loading="lazy"
           />

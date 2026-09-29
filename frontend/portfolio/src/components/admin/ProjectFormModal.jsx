@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { projectsApi } from '../../services/adminApi'
 import Field from './AdminField'
 import { createPortal } from 'react-dom'
+import MediaField from './MediaField'
 
 const CloseIcon = () => (
   <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
@@ -33,7 +34,8 @@ function Toggle({ label, checked, onChange }) {
 
 const empty = {
   title: '', description: '', technologies: '', githubUrl: '',
-  liveUrl: '', image: '', featured: false, published: true, order: 0,
+  liveUrl: '', image: '', imageMedia: null, imageMediaPreview: null,
+  imageAlt: undefined, featured: false, published: true, order: 0,
 }
 
 function fromProject(p) {
@@ -44,6 +46,9 @@ function fromProject(p) {
     githubUrl:    p.githubUrl    ?? '',
     liveUrl:      p.liveUrl      ?? '',
     image:        p.image        ?? '',
+    imageMedia:   p.imageMedia ? String(p.imageMedia._id ?? p.imageMedia) : null,
+    imageMediaPreview: p.imageMediaPreview ?? null,
+    imageAlt: p.imageAlt,
     featured:     p.featured     ?? false,
     published:    p.published    ?? true,
     order:        p.order        ?? 0,
@@ -55,6 +60,7 @@ function ProjectFormModal({ project, onClose, onSaved }) {
   const [form,   setForm]   = useState(isNew ? empty : fromProject(project))
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
+  const [mediaPending, setMediaPending] = useState(false)
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose() }
@@ -69,6 +75,10 @@ function ProjectFormModal({ project, onClose, onSaved }) {
       setError('Title and description are required.')
       return
     }
+    if (mediaPending) {
+      setError('Upload the selected image or cancel its selection before saving.')
+      return
+    }
     setSaving(true)
     setError('')
     const payload = {
@@ -81,6 +91,8 @@ function ProjectFormModal({ project, onClose, onSaved }) {
       githubUrl: form.githubUrl.trim(),
       liveUrl: form.liveUrl.trim(),
       image: form.image.trim(),
+      imageMedia: form.imageMedia,
+      imageAlt: form.imageAlt,
     }
     try {
       isNew
@@ -145,14 +157,18 @@ function ProjectFormModal({ project, onClose, onSaved }) {
             </Field>
           </div>
 
-          <Field label="Image URL">
-            <input type="url" value={form.image} onChange={(e) => set('image', e.target.value)}
-              placeholder="https://…" className={inputCls} />
-            {form.image && (
-              <img src={form.image} alt="Preview" onError={(e) => { e.target.style.display = 'none' }}
-                className="w-full h-32 object-cover rounded-lg border border-white/8 mt-1" />
-            )}
-          </Field>
+          <MediaField
+            label="Project image"
+            mediaId={form.imageMedia}
+            mediaPreview={form.imageMediaPreview}
+            legacyUrl={form.image}
+            alt={form.imageAlt}
+            defaultAlt={form.title}
+            onMediaChange={(mediaId, presentation) => setForm((prev) => ({ ...prev, imageMedia: mediaId, imageMediaPreview: presentation }))}
+            onLegacyUrlChange={(value) => set('image', value)}
+            onAltChange={(value) => set('imageAlt', value)}
+            onPendingChange={setMediaPending}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Display order">
@@ -178,7 +194,7 @@ function ProjectFormModal({ project, onClose, onSaved }) {
             className="px-4 py-2 rounded-lg text-xs font-semibold border border-white/10 text-muted hover:text-white transition-colors disabled:opacity-40">
             Cancel
           </button>
-          <button onClick={handleSave} disabled={saving}
+          <button onClick={handleSave} disabled={saving || mediaPending}
             className="px-4 py-2 rounded-lg text-xs font-semibold bg-primary hover:bg-primary/90 text-white transition-colors disabled:opacity-40 flex items-center gap-2">
             {saving && <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />}
             {isNew ? 'Create project' : 'Save changes'}

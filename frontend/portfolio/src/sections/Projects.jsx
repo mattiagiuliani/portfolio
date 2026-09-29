@@ -8,7 +8,7 @@ import Card from '../components/ui/Card'
 import { motion } from 'framer-motion'
 import { fadeUp, viewport } from '../lib/motion'
 
-function ProjectCard({ title, description, tags, github, live, index }) {
+function ProjectCard({ title, description, tags, github, live, image, imageMedia, imageAlt, index }) {
   return (
     <motion.div
       variants={fadeUp}
@@ -19,6 +19,14 @@ function ProjectCard({ title, description, tags, github, live, index }) {
     >
       <Card hover className="project-card p-7 flex flex-col gap-4 h-full">
         <span className="project-number">{String(index + 1).padStart(2, '0')} <span aria-hidden="true">↗</span></span>
+        {image && (
+          <img
+            src={image}
+            alt={imageMedia?.alt ?? imageAlt ?? title}
+            className="w-full aspect-video rounded-md border border-white/8 object-cover"
+            loading="lazy"
+          />
+        )}
         <h3 className="text-lg font-semibold text-white">{title}</h3>
         <p className="text-muted text-sm leading-relaxed flex-1">{description}</p>
         <ul className="flex flex-wrap gap-2">

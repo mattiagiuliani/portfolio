@@ -27,6 +27,19 @@ function readyPresentation(asset) {
   } catch { return false }
 }
 
+async function loadReadyAssets(records, reference) {
+  const ids = [...new Set(records.map((record) => String(record[reference] ?? '')).filter(validId))]
+  if (!ids.length) return new Map()
+
+  let assets
+  try {
+    assets = await MediaAsset.find({ _id: { $in: ids }, state: 'ready' }).select(canonicalFields).lean()
+  } catch {
+    throw new MediaAssociationError(reference, true)
+  }
+  return new Map(assets.filter(readyPresentation).map((asset) => [String(asset._id), asset]))
+}
+
 // Called before content mutation, within its existing publication transaction.
 // This registry is shared by the private admins; createdBy is provenance, not tenancy.
 export async function validateContentMedia(input, kind) {
@@ -53,17 +66,7 @@ export async function validateContentMedia(input, kind) {
 // Existing legacy-only records keep their exact public shape and require no registry read.
 export async function serializeContentMedia(records, kind) {
   const { reference, legacy, alt } = fields[kind]
-  const ids = [...new Set(records.map((record) => String(record[reference] ?? '')).filter(validId))]
-  let assets = []
-  if (ids.length) {
-    try {
-      assets = await MediaAsset.find({ _id: { $in: ids }, state: 'ready' }).select(canonicalFields).lean()
-    } catch {
-      // Do not hide a DB outage as a successful fallback publication.
-      throw new MediaAssociationError(reference, true)
-    }
-  }
-  const ready = new Map(assets.filter(readyPresentation).map((asset) => [String(asset._id), asset]))
+  const ready = await loadReadyAssets(records, reference)
   return records.map((record) => {
     const { [reference]: id, ...publicRecord } = record
     const asset = ready.get(String(id))
@@ -73,5 +76,17 @@ export async function serializeContentMedia(records, kind) {
       publicRecord[reference] = { url, width, height, format, alt: record[alt] ?? record.title ?? '' }
     }
     return publicRecord
+  })
+}
+
+// Admin editors need an image URL to preview a saved ID, but never need registry internals.
+export async function serializeAdminContentMedia(records, kind) {
+  const { reference } = fields[kind]
+  const ready = await loadReadyAssets(records, reference)
+  return records.map((record) => {
+    const asset = ready.get(String(record[reference]))
+    if (!asset) return record
+    const { url, width, height, format } = asset
+    return { ...record, [`${reference}Preview`]: { url, width, height, format } }
   })
 }
