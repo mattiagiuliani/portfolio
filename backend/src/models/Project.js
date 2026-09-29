@@ -30,6 +30,8 @@ const projectSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    imageMedia: { type: mongoose.Schema.Types.ObjectId, ref: 'MediaAsset' },
+    imageAlt: { type: String, maxlength: 300 },
     featured: {
       type: Boolean,
       default: false,

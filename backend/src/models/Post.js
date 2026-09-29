@@ -72,6 +72,8 @@ const postSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    coverMedia: { type: mongoose.Schema.Types.ObjectId, ref: 'MediaAsset' },
+    coverAlt: { type: String, maxlength: 300 },
     tags: {
       type: [String],
       default: [],

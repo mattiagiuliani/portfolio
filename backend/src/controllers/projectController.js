@@ -1,6 +1,7 @@
 import Project from '../models/Project.js'
 import { validationResult } from 'express-validator'
 import { enqueuePublication } from '../services/publicationQueue.js'
+import { validateContentMedia } from '../services/media/contentMedia.js'
 
 const queueProjectPublication = async (project, wasPublished = false) => {
   if (!project.published && !wasPublished) return { status: 'not-required' }
@@ -28,6 +29,7 @@ export const getProjects = async (req, res, next) => {
 export const createProject = async (req, res, next) => {
   if (sendValidationErrors(req, res)) return
   try {
+    await validateContentMedia(req.body, 'project')
     const project = new Project(req.body)
     await project.save()
     const publication = await queueProjectPublication(project)
@@ -41,6 +43,7 @@ export const updateProject = async (req, res, next) => {
     const project = await Project.findById(req.params.id)
     if (!project) return res.status(404).json({ success: false, message: 'Project not found' })
     const wasPublished = project.published
+    await validateContentMedia(req.body, 'project')
     project.set(req.body)
     await project.save()
     const publication = await queueProjectPublication(project, wasPublished)

@@ -1,6 +1,7 @@
 import { validationResult } from 'express-validator'
 import Post from '../models/Post.js'
 import { enqueuePublication } from '../services/publicationQueue.js'
+import { validateContentMedia, serializeContentMedia } from '../services/media/contentMedia.js'
 
 const PUBLIC_SORTS = new Set(['-publishedAt', 'publishedAt', '-createdAt', 'createdAt', 'title', '-title'])
 const ADMIN_SORTS = new Set(['-createdAt', 'createdAt', '-updatedAt', 'updatedAt', 'title', '-title', 'publishedAt', '-publishedAt'])
@@ -60,7 +61,7 @@ export const getPosts = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: posts,
+      data: await serializeContentMedia(posts, 'post'),
       pagination: {
         total,
         page: pageNum,
@@ -87,7 +88,7 @@ export const getPostBySlug = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Post not found' })
     }
 
-    res.json({ success: true, data: post })
+    res.json({ success: true, data: (await serializeContentMedia([post], 'post'))[0] })
   } catch (err) {
     next(err)
   }
@@ -117,6 +118,7 @@ export const createPost = async (req, res, next) => {
 
   try {
     // Use `new Post().save()` so pre-save hooks run (slug, readingTime, excerpt)
+    await validateContentMedia(req.body, 'post')
     const post = new Post(req.body)
     await post.save()
 
@@ -154,6 +156,7 @@ export const updatePost = async (req, res, next) => {
 
     const oldSlug = post.slug
     const wasPublished = post.published
+    await validateContentMedia(req.body, 'post')
     // `set()` + `save()` ensures pre-save hooks re-run for slug/readingTime
     post.set(req.body)
     await post.save()

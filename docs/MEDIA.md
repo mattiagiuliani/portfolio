@@ -1,7 +1,8 @@
-# Media uploads — Checkpoint 1
+# Media management
 
-This checkpoint provides a backend upload primitive only. There is no media picker,
-Post/Project association, replacement, deletion, migration or cleanup worker yet.
+Checkpoint 1 provides the backend upload primitive documented below. Checkpoint 2
+adds [content association](#content-association--checkpoint-2). There is no media
+picker, provider deletion, legacy migration or cleanup worker yet.
 
 ## Request and security boundary
 
@@ -119,8 +120,8 @@ URL and positive integer dimensions/bytes/format are required for ready records.
 Provider operations run outside Mongo transactions. There is no automatic
 reconciliation/retry/delete in this checkpoint. An operator can inspect pending/
 failed records and look up their exact provider/key later; retain these records.
-Content references and cleanup policy belong to future checkpoints, so successful
-uploads currently remain unreferenced. No publication jobs are enqueued.
+Uploads alone remain unreferenced and enqueue no publication jobs. Content
+association is a separate save operation described below; cleanup remains deferred.
 
 ## Tests
 
@@ -137,3 +138,100 @@ Cloudinary credentials, provider calls or quota are used. Binary fixtures are sm
 and generated in memory. As with existing backend integration tests,
 mongodb-memory-server needs a local cached MongoDB binary (first setup may download
 it); once cached the tests do not require internet access.
+
+## Content association — Checkpoint 2
+
+Existing authenticated `POST`/`PUT /api/admin/posts` and `/api/admin/projects`
+create/update flows accept the following additive fields (PUT includes `/:id`):
+
+| Content | Managed reference | Presentation override | Preserved legacy field |
+| --- | --- | --- | --- |
+| Post | `coverMedia`: MediaAsset ID or `null` | `coverAlt`: string up to 300 characters or `null` | `coverImage` |
+| Project | `imageMedia`: MediaAsset ID or `null` | `imageAlt`: string up to 300 characters or `null` | `image` |
+
+References are optional Mongo ObjectIds pointing to the existing `MediaAsset`
+collection. Presentation overrides are optional strings on the **content**, never
+on the provider asset. Existing records need no migration or default reference.
+Example update: `{ "coverMedia": "<24-hex-id>", "coverAlt": "Application dashboard" }`.
+
+Omitting a reference leaves it unchanged. `null` removes the association; an empty
+string is rejected. A reference object (including an object with an ID and URL),
+dotted media paths, malformed/nonexistent IDs, pending/failed assets or invalid
+canonical metadata are rejected with sanitized **422 MEDIA_ASSOCIATION_INVALID**.
+Clients cannot supply managed URL/dimensions/format/provider parameters. Ordinary
+unknown top-level fields remain discarded by the existing strict content schemas.
+The registry is read before mutation within the existing Mongo transaction.
+
+All writes retain the existing admin JWT/role/Origin boundary. `createdBy` records
+upload provenance; any authorized private admin can reference a ready asset in
+this shared portfolio registry, including assets uploaded by a former admin. No
+new tenant ownership rule or public association endpoint is introduced.
+
+### Precedence and responses
+
+| Stored content | Public result |
+| --- | --- |
+| Legacy only | Original legacy URL/path; no managed presentation object |
+| Valid managed only | Canonical asset URL and safe presentation object |
+| Both | Managed URL wins publicly; stored legacy field is preserved |
+| Neither | No image; still valid under existing optional-image semantics |
+| Missing/non-ready/corrupt persisted reference | Safe legacy fallback, or no image; never expose the invalid ID |
+
+Public API responses keep `coverImage`/`image` as the **effective URL** for existing
+consumers. Valid managed media adds `coverMedia`/`imageMedia` as this safe object:
+
+```json
+{"url":"https://images.example.test/asset.png","width":1200,"height":800,"format":"png","alt":"Application dashboard"}
+```
+
+No MediaAsset `_id`, provider, key, creator, lifecycle, failure code, byte count or
+registry timestamps are exposed publicly. Existing content IDs are unchanged.
+Admin responses retain the reference **ID** and stored legacy field, allowing a
+future editor to distinguish association from fallback without overwriting either.
+No full MediaAsset document is populated into a response. Lists resolve references
+in one batched registry query; legacy-only responses need no extra registry query.
+
+Managed `alt` uses the content override when present, including `""` for decorative
+use; missing or `null` overrides fall back to the content title, matching the current
+blog's title-based alt semantics. The top-level content override remains available
+for legacy images too. Consuming custom alt/dimensions in frontend components is
+deferred to frontend integration; this checkpoint changes no UI.
+
+Local legacy paths/HTTPS URLs are retained without migration. Existing Post cover
+input validation remains unchanged. Project writes additionally accept safe local
+`/images/...` raster paths, so legacy project assets can round-trip through edits;
+the existing URL validator still handles non-local project image inputs.
+
+### Publishing, replacement and failures
+
+Saving A → B or removing the association with `null` uses existing publication
+paths/jobs. The old MediaAsset and remote object remain intact. Removing a managed
+reference restores the stored legacy image; to remove both sources, explicitly
+save `null` for the reference and `""` for the legacy field. Alt overrides persist
+until explicitly changed/reset, including on replacement or removal.
+
+The public serializers feed both HTTP consumers and `readPublicSnapshot`. The
+existing shared fingerprint automatically includes canonical URL, width, height,
+format and effective alt; no hash, outbox, worker, retry, observer or ISR algorithm
+was changed. Registry-only key/provider/creator/timestamp/failure changes do not
+change the public revision. This does not add a registry editing API or automatic
+publication for direct database edits: association/content saves remain the trigger.
+
+Content writes and publication jobs commit together; failed outbox insertion rolls
+back reference/alt changes. Transient Mongo read errors retain the driver's retry
+behavior. Ordinary registry failures return sanitized **503
+MEDIA_ASSOCIATION_UNAVAILABLE**. Public registry outages also fail the read instead
+of publishing a misleading fallback; existing ISR error handling can keep the last
+valid page. Missing/non-ready records, by contrast, use the fallback described above.
+
+Only already-uploaded records are read. No upload, provider deletion, reference
+count, orphan scan or cleanup occurs during association. Future cleanup must account
+for content references and concurrent association transactions before deleting assets.
+
+Focused association tests (real disposable Mongo replica set, real admin/public
+routers, deterministic registry fixtures, no binary upload/provider/network):
+
+```sh
+cd backend
+node --test test/media-association.test.js
+```

@@ -1,5 +1,10 @@
+import { MediaAssociationError } from '../services/media/contentMedia.js'
+
 // Centralized error handler — must have 4 params for Express to recognize it
 const errorHandler = (err, _req, res, _next) => {
+  if (err instanceof MediaAssociationError) {
+    return res.status(err.status).json({ success: false, code: err.code, errors: [{ field: err.field, message: err.message }] })
+  }
   console.error(err.stack)
 
   if (err.name === 'CastError') {

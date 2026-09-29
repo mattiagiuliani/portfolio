@@ -74,7 +74,9 @@ const projectValidators = [
   body('technologies').optional().isArray(),
   body('githubUrl').optional({ checkFalsy: true }).isURL(),
   body('liveUrl').optional({ checkFalsy: true }).isURL(),
-  body('image').optional({ checkFalsy: true }).isURL(),
+  body('image').optional({ checkFalsy: true })
+    .if((value) => typeof value !== 'string' || !/^\/images\/(?:[a-z0-9_-]+\/)*[a-z0-9][a-z0-9._-]*\.(?:webp|jpe?g|png)$/i.test(value))
+    .isURL(),
   body('featured').optional().isBoolean(),
   body('published').optional().isBoolean(),
   body('order').optional().isInt({ min: 0 }),
