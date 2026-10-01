@@ -148,7 +148,9 @@ try {
   await page.route('https://images.example.test/**', (route) => route.fulfill({ status: 200, contentType: 'image/png', body: png }))
 
   let abortNextUpload = true
+  let abortNextInlineUpload = false
   let heldUpload = null
+  let delayedInlineUpload = null
   let mediaRequests = 0
   let mediaHeaders
   await page.route('**/api/admin/media', async (route) => {
@@ -156,6 +158,11 @@ try {
     mediaHeaders ??= await route.request().allHeaders()
     if (abortNextUpload) {
       abortNextUpload = false
+      await route.abort('failed')
+      return
+    }
+    if (abortNextInlineUpload) {
+      abortNextInlineUpload = false
       await route.abort('failed')
       return
     }
@@ -167,6 +174,16 @@ try {
       await route.fulfill({ status: 201, json: { success: true, data: {
         id: 'f'.repeat(24), url: 'https://images.example.test/stale.png', width: 12, height: 8, format: 'png', bytes: 100,
       } } }).catch(() => {})
+      return
+    }
+    if (delayedInlineUpload) {
+      const current = delayedInlineUpload
+      delayedInlineUpload = null
+      const response = await route.fetch()
+      current.started.resolve(await response.json())
+      await current.release.promise
+      await route.fulfill({ response }).catch(() => {})
+      current.completed?.resolve()
       return
     }
     await route.continue()
@@ -317,6 +334,195 @@ try {
   await waitForPublished(`/blog/${slug}`)
   await verifyPublicImage(null, '')
   assert.equal((await MediaAsset.findById(replacementAsset._id)).state, 'ready', 'removal preserves the asset')
+
+  await page.getByRole('listitem').filter({ hasText: 'Managed media checkpoint three' }).getByRole('button', { name: 'Edit', exact: true }).click()
+  dialog = page.getByRole('dialog')
+  const articleBody = dialog.getByLabel('Article content', { exact: true })
+  await articleBody.fill('The inline diagram is here.')
+  await articleBody.press('End')
+  const fileChooserPromise = page.waitForEvent('filechooser')
+  await dialog.getByRole('button', { name: 'Insert image', exact: true }).click()
+  const fileChooser = await fileChooserPromise
+  await fileChooser.setFiles({ name: 'inline-diagram.png', mimeType: 'image/png', buffer: png })
+  await dialog.getByLabel('Inline image alt text').fill('A [system] *map*')
+  abortNextInlineUpload = true
+  await dialog.getByRole('button', { name: 'Upload inline image', exact: true }).click()
+  await expect(dialog.getByText('The upload could not reach the server. Check your connection and retry.', { exact: true })).toBeVisible()
+  const firstInlineUpload = { started: deferred(), release: deferred() }
+  delayedInlineUpload = firstInlineUpload
+  await dialog.getByRole('button', { name: 'Retry upload', exact: true }).click()
+  await firstInlineUpload.started.promise
+  await expect(dialog.getByRole('button', { name: 'Save draft', exact: true })).toBeDisabled()
+  await dialog.getByLabel('Inline image alt text').fill('Latest diagram alt')
+  await articleBody.press('End')
+  await articleBody.pressSequentially(' Continued prose.')
+  await expect(dialog.getByText('Uploading image…', { exact: true })).toBeVisible()
+  await expect.poll(async () => articleBody.inputValue()).toContain('Continued prose.')
+
+  await articleBody.press('End')
+  const secondFileChooserPromise = page.waitForEvent('filechooser')
+  await dialog.getByRole('button', { name: 'Insert image', exact: true }).click()
+  const secondFileChooser = await secondFileChooserPromise
+  await secondFileChooser.setFiles({ name: 'inline-second.png', mimeType: 'image/png', buffer: png })
+  await dialog.getByLabel('Inline image alt text').nth(1).fill('Second illustration')
+  await dialog.getByRole('button', { name: 'Upload inline image', exact: true }).click()
+  await expect.poll(async () => articleBody.inputValue()).toContain('![Second illustration](media:')
+  assert.equal((await articleBody.inputValue()).split('portfolio-media-upload:').length - 1, 1)
+  firstInlineUpload.release.resolve()
+  await expect.poll(async () => articleBody.inputValue()).toContain('![Latest diagram alt](media:')
+  await expect.poll(async () => articleBody.inputValue()).not.toContain('portfolio-media-upload:')
+  assert.equal((await Post.findById(postId)).content, 'Image upload integration fixture.', 'upload alone does not mutate the saved Post')
+  await page.getByRole('button', { name: 'Update', exact: true }).click()
+  const inlinePost = await until(async () => {
+    const saved = await Post.findById(postId)
+    return saved?.content.includes('Second illustration') && saved.content.includes('Latest diagram alt') ? saved : null
+  }, 'save managed inline media reference')
+  const inlineIds = [...inlinePost.content.matchAll(/media:([a-f\d]{24})/gi)].map((match) => match[1])
+  assert.equal(inlineIds.length, 2)
+  assert.ok(inlinePost.content.indexOf(`media:${inlineIds[0]}`) < inlinePost.content.indexOf(`media:${inlineIds[1]}`))
+  assert.equal(inlinePost.content.includes('portfolio-media-upload:'), false)
+  const inlineAssets = await Promise.all(inlineIds.map((id) => MediaAsset.findById(id).lean()))
+  assert.equal(inlineAssets.length, 2)
+  const [firstInlineAsset, secondInlineAsset] = inlineAssets
+  assert.ok(firstInlineAsset)
+  assert.ok(secondInlineAsset)
+  await waitForPublished(`/blog/${slug}`)
+
+  let publicArticle = await fetch(`${apiUrl}/api/posts/${slug}`)
+  let publicPost = (await publicArticle.json()).data
+  assert.ok(publicPost.content.includes(firstInlineAsset.url))
+  assert.ok(publicPost.content.includes(secondInlineAsset.url))
+  assert.equal(publicPost.content.includes('media:'), false)
+  const articlePage = await fetch(`${base}/blog/${slug}`)
+  const articleHtml = await articlePage.text()
+  assert.ok(articleHtml.includes(`src="${firstInlineAsset.url}"`))
+  assert.ok(articleHtml.includes(`src="${secondInlineAsset.url}"`))
+  assert.ok(articleHtml.includes('alt="Latest diagram alt"'))
+  await page.goto(`${base}/blog/${slug}`)
+  const publicInlineImage = page.getByRole('img', { name: 'Latest diagram alt', exact: true })
+  await expect(publicInlineImage).toHaveAttribute('src', firstInlineAsset.url)
+  await expect(page.getByRole('img', { name: 'Second illustration', exact: true })).toHaveAttribute('src', secondInlineAsset.url)
+  await expect(page.locator('img[src^="media:"]')).toHaveCount(0)
+
+  await page.goto(`${base}/admin`)
+  await page.getByRole('link', { name: 'Blog', exact: true }).click()
+  await page.getByRole('listitem').filter({ hasText: 'Managed media checkpoint three' }).getByRole('button', { name: 'Edit', exact: true }).click()
+  dialog = page.getByRole('dialog')
+  const savedBody = dialog.getByLabel('Article content', { exact: true })
+  await expect(savedBody).toHaveValue(inlinePost.content)
+  const editedContent = inlinePost.content.replace(/!\[Latest diagram alt\]\(media:/, '![Updated diagram alt](media:')
+  assert.notEqual(editedContent, inlinePost.content, 'the E2E edits the managed image alt source')
+  await savedBody.fill(editedContent)
+  const altUpdateResponse = page.waitForResponse((response) => new URL(response.url()).pathname.startsWith('/api/admin/posts/') && response.request().method() === 'PUT')
+  await dialog.getByRole('button', { name: 'Update', exact: true }).click()
+  const altUpdate = await altUpdateResponse
+  assert.equal(altUpdate.status(), 200, await altUpdate.text())
+  await until(async () => (await Post.findById(postId))?.content.includes('Updated diagram alt'), 'save inline image alt edit')
+  await waitForPublished(`/blog/${slug}`)
+  publicArticle = await fetch(`${apiUrl}/api/posts/${slug}`)
+  publicPost = (await publicArticle.json()).data
+  assert.ok(publicPost.content.includes(firstInlineAsset.url))
+  assert.ok(publicPost.content.includes(secondInlineAsset.url))
+  assert.ok(publicPost.content.includes('Updated diagram alt'))
+  const updatedArticle = await fetch(`${base}/blog/${slug}`)
+  assert.ok((await updatedArticle.text()).includes('alt="Updated diagram alt"'))
+  const persistedBodyAfterAltEdit = (await Post.findById(postId)).content
+
+  await page.getByRole('listitem').filter({ hasText: 'Managed media checkpoint three' }).getByRole('button', { name: 'Edit', exact: true }).click()
+  dialog = page.getByRole('dialog')
+  const bodyWithDeletedPlaceholder = dialog.getByLabel('Article content', { exact: true })
+  await bodyWithDeletedPlaceholder.press('End')
+  const removedGate = { started: deferred(), release: deferred(), completed: deferred() }
+  delayedInlineUpload = removedGate
+  const removedPickerPromise = page.waitForEvent('filechooser')
+  await dialog.getByRole('button', { name: 'Insert image', exact: true }).click()
+  await (await removedPickerPromise).setFiles({ name: 'removed-placeholder.png', mimeType: 'image/png', buffer: png })
+  await dialog.getByLabel('Inline image alt text').fill('This insertion is removed')
+  const readyCountBeforeRemovedUpload = await MediaAsset.countDocuments({ state: 'ready' })
+  await dialog.getByRole('button', { name: 'Upload inline image', exact: true }).click()
+  await removedGate.started.promise
+  const pendingBody = await bodyWithDeletedPlaceholder.inputValue()
+  const removedMarker = pendingBody.match(/<!--portfolio-media-upload:[^>]+-->/)?.[0]
+  assert.ok(removedMarker)
+  await bodyWithDeletedPlaceholder.fill(pendingBody.replace(removedMarker, ''))
+  await expect(dialog.getByLabel('Inline image alt text')).toHaveCount(0)
+  removedGate.release.resolve()
+  await removedGate.completed.promise
+  assert.equal((await Post.findById(postId)).content, persistedBodyAfterAltEdit, 'deleting a pending marker prevents upload response insertion')
+  assert.equal(await MediaAsset.countDocuments({ state: 'ready' }), readyCountBeforeRemovedUpload + 1, 'the successful but unreferenced upload remains registered')
+  const documentedMarker = '<!--portfolio-media-upload:550e8400-e29b-41d4-a716-446655440000-->'
+  const documentedExample = `${documentedMarker}\n\n\`\`\`md\n${documentedMarker}\n\`\`\`\n\n\` ${documentedMarker} \``
+  await bodyWithDeletedPlaceholder.fill(`${documentedExample}\n${documentedMarker}`)
+  await expect(dialog.getByRole('button', { name: 'Save draft', exact: true })).toBeDisabled()
+  await dialog.getByRole('button', { name: 'Remove unresolved markers', exact: true }).click()
+  await expect(bodyWithDeletedPlaceholder).toHaveValue(`\n\n\`\`\`md\n${documentedMarker}\n\`\`\`\n\n\` ${documentedMarker} \`\n`)
+  await expect(dialog.getByRole('button', { name: 'Save draft', exact: true })).toBeEnabled()
+
+  const nestedFenceExample = `- * \`\`\`html\n    ${documentedMarker}\n    \`\`\``
+  await bodyWithDeletedPlaceholder.fill(`${nestedFenceExample}\n\n${documentedMarker}`)
+  await expect(dialog.getByRole('button', { name: 'Save draft', exact: true })).toBeDisabled()
+  await dialog.getByRole('button', { name: 'Remove unresolved markers', exact: true }).click()
+  await expect(bodyWithDeletedPlaceholder).toHaveValue(`${nestedFenceExample}\n\n`)
+  await expect(dialog.getByRole('button', { name: 'Save draft', exact: true })).toBeEnabled()
+  for (const listMarker of ['-', '1.']) {
+    const codeExample = `${listMarker}     ${documentedMarker}`
+    await bodyWithDeletedPlaceholder.fill(codeExample)
+    await expect(dialog.getByRole('button', { name: 'Save draft', exact: true })).toBeEnabled()
+    await expect(dialog.getByRole('button', { name: 'Remove unresolved markers', exact: true })).toHaveCount(0)
+    await expect(bodyWithDeletedPlaceholder).toHaveValue(codeExample)
+  }
+
+  const sameMarkerGate = { started: deferred(), release: deferred(), completed: deferred() }
+  delayedInlineUpload = sameMarkerGate
+  await bodyWithDeletedPlaceholder.fill('Completion fixture.\n\n')
+  await bodyWithDeletedPlaceholder.press('End')
+  const sameMarkerPickerPromise = page.waitForEvent('filechooser')
+  await dialog.getByRole('button', { name: 'Insert image', exact: true }).click()
+  await (await sameMarkerPickerPromise).setFiles({ name: 'same-marker.png', mimeType: 'image/png', buffer: png })
+  await dialog.getByLabel('Inline image alt text').fill('Code-safe completion')
+  await dialog.getByRole('button', { name: 'Upload inline image', exact: true }).click()
+  const sameMarkerUpload = await sameMarkerGate.started.promise
+  const sameMarkerBody = await bodyWithDeletedPlaceholder.inputValue()
+  const activeMarkers = sameMarkerBody.match(/<!--portfolio-media-upload:[^>]+-->/g)
+  assert.equal(activeMarkers?.length, 1, 'the clean fixture contains only the marker generated by this upload')
+  const sameMarker = activeMarkers[0]
+  const inlineExample = `\` ${sameMarker} \`\n`
+  const collisionBody = `${inlineExample}${sameMarkerBody}`
+  assert.equal(collisionBody.split(sameMarker).length - 1, 2)
+  await bodyWithDeletedPlaceholder.fill(collisionBody)
+  await expect(dialog.getByRole('button', { name: 'Save draft', exact: true })).toBeDisabled()
+  const managedImage = `![Code\\-safe completion](media:${sameMarkerUpload.data.id})`
+  const expectedCompletion = `${inlineExample}${sameMarkerBody.replace(sameMarker, managedImage)}`
+  assert.notEqual(collisionBody.replace(sameMarker, managedImage), expectedCompletion, 'blind first-occurrence replacement must fail this regression')
+  sameMarkerGate.release.resolve()
+  await sameMarkerGate.completed.promise
+  await expect(bodyWithDeletedPlaceholder).toHaveValue(expectedCompletion)
+  await expect(dialog.getByRole('button', { name: 'Save draft', exact: true })).toBeEnabled()
+  await dialog.getByRole('button', { name: 'Close editor' }).click()
+
+  await page.getByRole('listitem').filter({ hasText: 'Managed media checkpoint three' }).getByRole('button', { name: 'Edit', exact: true }).click()
+  dialog = page.getByRole('dialog')
+  const closingBody = dialog.getByLabel('Article content', { exact: true })
+  await closingBody.press('End')
+  const closingGate = { started: deferred(), release: deferred(), completed: deferred() }
+  delayedInlineUpload = closingGate
+  const closingPickerPromise = page.waitForEvent('filechooser')
+  await dialog.getByRole('button', { name: 'Insert image', exact: true }).click()
+  await (await closingPickerPromise).setFiles({ name: 'closed-editor.png', mimeType: 'image/png', buffer: png })
+  await dialog.getByLabel('Inline image alt text').fill('Closed editor image')
+  await dialog.getByRole('button', { name: 'Upload inline image', exact: true }).click()
+  await closingGate.started.promise
+  await dialog.getByRole('button', { name: 'Close editor' }).click()
+  await expect(dialog).not.toBeVisible()
+  const legacyEditor = page.getByRole('listitem').filter({ hasText: 'Legacy image fixture' })
+  await legacyEditor.getByRole('button', { name: 'Edit', exact: true }).click()
+  dialog = page.getByRole('dialog')
+  const nextPostBody = dialog.getByLabel('Article content', { exact: true })
+  await expect(nextPostBody).toHaveValue('Legacy content')
+  closingGate.release.resolve()
+  await closingGate.completed.promise
+  await expect(nextPostBody).toHaveValue('Legacy content')
+  await dialog.getByRole('button', { name: 'Close editor' }).click()
 
   await page.getByRole('link', { name: 'Projects', exact: true }).click()
   await page.getByRole('button', { name: 'Add project', exact: true }).click()

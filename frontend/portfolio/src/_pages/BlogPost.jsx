@@ -120,7 +120,28 @@ function BlogPost({ post }) {
               prose-th:text-white prose-th:border-white/10
               prose-td:text-muted prose-td:border-white/8"
           >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                img: (props) => {
+                  const imageProps = { ...props }
+                  delete imageProps.node
+                  const { src, alt } = imageProps
+                  delete imageProps.src
+                  delete imageProps.alt
+                  return (
+                    <img
+                      {...imageProps}
+                      src={src}
+                      alt={alt ?? ''}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-auto max-w-full rounded-xl border border-white/8"
+                    />
+                  )
+                },
+              }}
+            >
               {content}
             </ReactMarkdown>
           </motion.div>

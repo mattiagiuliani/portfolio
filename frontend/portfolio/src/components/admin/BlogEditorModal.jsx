@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { blogAdminApi } from '../../services/adminApi'
 import { CATEGORIES } from '../../lib/blogUtils'
 import { isValidBlogCoverImage } from '../../lib/blogCoverImage'
 import MediaField from './MediaField'
+import InlineMediaControl from './InlineMediaControl'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const CloseIcon = () => (
@@ -99,6 +100,8 @@ function BlogEditorModal({ post, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
   const [mediaPending, setMediaPending] = useState(false)
+  const [inlineMediaPending, setInlineMediaPending] = useState(false)
+  const contentTextarea = useRef(null)
 
   // Close on Escape
   useEffect(() => {
@@ -130,6 +133,10 @@ function BlogEditorModal({ post, onClose, onSaved }) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }, [])
 
+  const updateContent = useCallback((change) => {
+    setForm((prev) => ({ ...prev, content: typeof change === 'function' ? change(prev.content) : change }))
+  }, [])
+
   const handleSave = async (publishOverride = null) => {
     if (loadingPost) return
     if (!form.title.trim() || !form.content.trim() || !form.category) {
@@ -138,6 +145,10 @@ function BlogEditorModal({ post, onClose, onSaved }) {
     }
     if (mediaPending) {
       setError('Upload the selected image or cancel its selection before saving.')
+      return
+    }
+    if (inlineMediaPending) {
+      setError('Finish or cancel each inline image upload before saving.')
       return
     }
     if (form.coverImage.trim() && !isValidBlogCoverImage(form.coverImage.trim())) {
@@ -241,12 +252,21 @@ function BlogEditorModal({ post, onClose, onSaved }) {
 
             {/* Markdown content */}
             <textarea
+              ref={contentTextarea}
               value={form.content}
               aria-label="Article content"
-              onChange={(e) => set('content', e.target.value)}
+              onChange={(e) => updateContent(e.target.value)}
               placeholder={'Write your article in Markdown…\n\n# Heading\n\n**bold**, *italic*, `code`\n\n```js\nconsole.log("hello")\n```'}
               className="flex-1 w-full min-h-[320px] sm:min-h-[400px] bg-bg/50 border border-white/5 rounded-xl px-5 py-4 text-sm text-white/85 placeholder:text-subtle/50 font-mono leading-relaxed resize-none focus:outline-none focus:border-primary/30 transition-colors duration-200"
               spellCheck={false}
+            />
+
+            <InlineMediaControl
+              key={post?._id ?? 'new-post'}
+              content={form.content}
+              onContentChange={updateContent}
+              textareaRef={contentTextarea}
+              onPendingChange={setInlineMediaPending}
             />
 
             {error && (
@@ -339,7 +359,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
             <button
               type="button"
               onClick={() => handleSave(false)}
-              disabled={saving || loadingPost || mediaPending}
+              disabled={saving || loadingPost || mediaPending || inlineMediaPending}
               className="px-4 py-2 rounded-lg text-xs font-semibold border border-white/10 text-muted hover:text-white hover:border-white/20 transition-colors duration-200 disabled:opacity-40"
             >
               {loadingPost ? 'Loading…' : saving ? 'Saving…' : 'Save draft'}
@@ -347,7 +367,7 @@ function BlogEditorModal({ post, onClose, onSaved }) {
             <button
               type="button"
               onClick={() => handleSave(true)}
-              disabled={saving || loadingPost || mediaPending}
+              disabled={saving || loadingPost || mediaPending || inlineMediaPending}
               className="px-4 py-2 rounded-lg text-xs font-semibold bg-primary hover:bg-primary/90 text-white transition-colors duration-200 disabled:opacity-40 flex items-center gap-2"
             >
               {saving && (

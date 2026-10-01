@@ -249,6 +249,119 @@ test('managed media association through real admin/public HTTP routes and public
     })
   }
 
+  await t.test('managed inline Markdown validates transactionally, resolves publicly, and changes publication revisions', async () => {
+    const reference = (alt, id) => `![${alt}](media:${id})`
+    for (const [label, content] of [
+      ['missing', reference('missing', new mongoose.Types.ObjectId().toString())],
+      ['pending', reference('pending', pending.id)],
+      ['failed', reference('failed', failed.id)],
+      ['malformed', '![bad](media:not-an-object-id)'],
+      ['one invalid among multiple', `${reference('valid', a.id)}\n\n${reference('pending', pending.id)}`],
+    ]) {
+      const rejected = await create(kinds[0], { content, published: false })
+      assert.equal(rejected.status, 422, `${label} reference is rejected`)
+      assert.equal(rejected.body.code, 'MEDIA_ASSOCIATION_INVALID')
+      assert.deepEqual(rejected.body.errors, [{ field: 'content', message: 'Use a ready media asset ID and valid image presentation data.' }])
+      assert.equal(await Post.countDocuments(), 0)
+      assert.equal(await PublicationJob.countDocuments(), 0)
+    }
+
+    const managedDefinitionContent = `![Managed][ref]\n\n[ref]: media:${a.id}\n[REF]: https://legacy.example.test/late.png`
+    const legacyDefinitionContent = '![Legacy][ref]\n\n[ref]: https://legacy.example.test/first.png\n[REF]: media:' + a.id
+    const managedDefinitionPost = await create(kinds[0], { title: 'Managed definition precedence', content: managedDefinitionContent, published: true })
+    assert.equal(managedDefinitionPost.status, 201)
+    const managedDefinitionPublic = await publicRecord(kinds[0], managedDefinitionPost.body.data.slug)
+    assert.ok(managedDefinitionPublic.content.includes(a.url))
+    assert.deepEqual((await import('../src/services/media/inlineMarkdown.js')).parseInlineMarkdown(managedDefinitionPublic.content).references, [])
+    const legacyDefinitionPost = await create(kinds[0], { title: 'Legacy definition precedence', content: legacyDefinitionContent, published: true })
+    assert.equal(legacyDefinitionPost.status, 201)
+    const legacyDefinitionPublic = await publicRecord(kinds[0], legacyDefinitionPost.body.data.slug)
+    assert.equal(legacyDefinitionPublic.content, legacyDefinitionContent)
+
+    const legacy = '![Legacy](https://legacy.example.test/existing.png)'
+    const initialContent = `![Architecture \\[diagram\\] \\*](media:${a.id})\n\n![](media:${a.id})\n\n${legacy}`
+    const created = await create(kinds[0], { content: initialContent })
+    assert.equal(created.status, 201)
+    const postId = created.body.data._id
+    const slug = created.body.data.slug
+    assert.equal((await Post.findById(postId)).content, initialContent)
+
+    const publicContent = async () => (await publicRecord(kinds[0], slug)).content
+    let output = await publicContent()
+    assert.ok(output.includes(`![Architecture \\[diagram\\] \\*](${a.url})`))
+    assert.ok(output.includes(`![](${a.url})`))
+    assert.ok(output.includes(legacy))
+    assert.equal(output.includes('media:'), false)
+    assert.equal(output.includes(a.key), false)
+
+    const detail = await api(`/api/posts/${slug}`, { session: null })
+    assert.deepEqual((await import('../src/services/media/inlineMarkdown.js')).parseInlineMarkdown(detail.body.data.content).references, [])
+    let revision = (await readPublicSnapshot(`/blog/${slug}`)).revision
+
+    const altOnlyContent = `![Updated architecture](media:${a.id})\n\n![](media:${a.id})\n\n${legacy}`
+    const altOnly = await update(kinds[0], postId, { content: altOnlyContent })
+    assert.equal(altOnly.status, 200)
+    assert.deepEqual((await Post.findById(postId)).content.split('\n\n').slice(1), initialContent.split('\n\n').slice(1))
+    const altRevision = (await readPublicSnapshot(`/blog/${slug}`)).revision
+    assert.notEqual(altRevision, revision, 'inline alt-only changes alter the public fingerprint')
+    revision = altRevision
+
+    for (const nextContent of [
+      `![Updated alt](media:${a.id})\n\n![](media:${a.id})\n\n${legacy}`,
+      `![Replaced](media:${b.id})\n\n![](media:${a.id})\n\n${legacy}`,
+      `Removed managed image\n\n${legacy}`,
+    ]) {
+      const saved = await update(kinds[0], postId, { content: nextContent })
+      assert.equal(saved.status, 200)
+      assert.equal(saved.body.publication.status, 'queued')
+      const nextRevision = (await readPublicSnapshot(`/blog/${slug}`)).revision
+      assert.notEqual(nextRevision, revision)
+      revision = nextRevision
+    }
+
+    const unchangedBody = (await Post.findById(postId)).content
+    await MediaAsset.collection.updateOne({ _id: b._id }, { $set: { state: 'pending' } })
+    const omitted = await update(kinds[0], postId, { excerpt: 'Content omitted intentionally' })
+    assert.equal(omitted.status, 200)
+    assert.equal((await Post.findById(postId)).content, unchangedBody)
+
+    const restored = `![Unavailable diagram](media:${b.id})`
+    await Post.collection.updateOne({ _id: new mongoose.Types.ObjectId(postId) }, { $set: { content: restored } })
+    output = await publicContent()
+    assert.equal(output, 'Unavailable diagram')
+    assert.equal(output.includes('media:'), false)
+    await MediaAsset.collection.updateOne({ _id: b._id }, { $set: { state: 'ready' } })
+
+    const missingId = new mongoose.Types.ObjectId()
+    await Post.collection.updateOne({ _id: new mongoose.Types.ObjectId(postId) }, { $set: { content: `![Missing diagram](media:${missingId})` } })
+    assert.equal(await publicContent(), 'Missing diagram')
+    await Post.collection.updateOne({ _id: new mongoose.Types.ObjectId(postId) }, { $set: { content: `![Corrupt diagram](media:${b.id})` } })
+    await MediaAsset.collection.updateOne({ _id: b._id }, { $set: { url: 'http://unsafe.example.test/image.png' } })
+    assert.equal(await publicContent(), 'Corrupt diagram')
+    await MediaAsset.collection.updateOne({ _id: b._id }, { $set: { url: b.url } })
+  })
+
+  await t.test('inline references in code are ignored and temporary upload markers cannot be saved', async () => {
+    const id = a.id
+    const code = `\`\`\`md\n![example](media:${id})\n\`\`\`\n\nInline \`![example](media:${id})\`\n\n\\![escaped](media:${id})`
+    const saved = await create(kinds[0], { content: code, published: false })
+    assert.equal(saved.status, 201)
+    assert.equal((await Post.findById(saved.body.data._id)).content, code)
+    const marker = await create(kinds[0], { content: '<!--portfolio-media-upload:550e8400-e29b-41d4-a716-446655440000-->', published: false })
+    assert.equal(marker.status, 422)
+    assert.equal(await PublicationJob.countDocuments(), 0)
+  })
+
+  await t.test('invalid inline update rolls back Post and publication work', async () => {
+    const saved = await create(kinds[0], { content: `![Ready](media:${a.id})` })
+    const before = await Post.findById(saved.body.data._id).lean()
+    const jobCount = await PublicationJob.countDocuments()
+    const rejected = await update(kinds[0], saved.body.data._id, { content: `![Bad](media:${pending.id})` })
+    assert.equal(rejected.status, 422)
+    assert.deepEqual(await Post.findById(saved.body.data._id).lean(), before)
+    assert.equal(await PublicationJob.countDocuments(), jobCount)
+  })
+
   await t.test('malformed ready metadata is rejected; invalid persisted references safely fall back', async () => {
     for (const [index, override] of [
       { url: 'http://unsafe.test/x.png' }, { url: 'https://user:password@unsafe.test/x.png' }, { url: 'https://images.test/x.png?private=value' },

@@ -1,4 +1,5 @@
 import MediaAsset from '../../models/MediaAsset.js'
+import { parseInlineMarkdown, resolveInlineMarkdown, uniqueInlineMediaIds } from './inlineMarkdown.js'
 
 const fields = {
   post: { reference: 'coverMedia', legacy: 'coverImage', alt: 'coverAlt' },
@@ -16,7 +17,7 @@ export class MediaAssociationError extends Error {
   }
 }
 
-function readyPresentation(asset) {
+export function readyPresentation(asset) {
   if (!asset || asset.state !== 'ready') return false
   try {
     const url = new URL(asset.url)
@@ -25,6 +26,18 @@ function readyPresentation(asset) {
       && [asset.width, asset.height, asset.bytes].every((value) => Number.isSafeInteger(value) && value > 0)
       && asset.width <= 8192 && asset.height <= 8192 && asset.width * asset.height <= 32000000
   } catch { return false }
+}
+
+async function loadReadyAssetsByIds(ids, field) {
+  if (!ids.length) return new Map()
+  let assets
+  try {
+    assets = await MediaAsset.find({ _id: { $in: ids }, state: 'ready' }).select(canonicalFields).lean()
+  } catch (error) {
+    if (error.hasErrorLabel?.('TransientTransactionError')) throw error
+    throw new MediaAssociationError(field, true)
+  }
+  return new Map(assets.filter(readyPresentation).map((asset) => [String(asset._id).toLowerCase(), asset]))
 }
 
 async function loadReadyAssets(records, reference) {
@@ -49,6 +62,14 @@ export async function validateContentMedia(input, kind) {
   }
   if (Object.hasOwn(input, alt) && input[alt] !== null
     && (typeof input[alt] !== 'string' || input[alt].length > 300)) throw new MediaAssociationError(alt)
+  if (kind === 'post' && Object.hasOwn(input, 'content')) {
+    if (typeof input.content !== 'string') throw new MediaAssociationError('content')
+    const parsed = parseInlineMarkdown(input.content)
+    if (parsed.hasPendingMarker || parsed.references.some(({ id }) => !id)) throw new MediaAssociationError('content')
+    const ids = uniqueInlineMediaIds(parsed)
+    const assets = await loadReadyAssetsByIds(ids, 'content')
+    if (ids.some((id) => !assets.has(id))) throw new MediaAssociationError('content')
+  }
   if (!Object.hasOwn(input, reference) || input[reference] === null) return
   if (!validId(input[reference])) throw new MediaAssociationError(reference)
   let asset
@@ -67,7 +88,12 @@ export async function validateContentMedia(input, kind) {
 export async function serializeContentMedia(records, kind) {
   const { reference, legacy, alt } = fields[kind]
   const ready = await loadReadyAssets(records, reference)
-  return records.map((record) => {
+  const parsedBodies = kind === 'post'
+    ? records.map((record) => typeof record.content === 'string' ? parseInlineMarkdown(record.content) : null)
+    : []
+  const inlineIds = [...new Set(parsedBodies.flatMap((parsed) => parsed ? uniqueInlineMediaIds(parsed) : []))]
+  const inlineReady = await loadReadyAssetsByIds(inlineIds, 'content')
+  return records.map((record, index) => {
     const { [reference]: id, ...publicRecord } = record
     const asset = ready.get(String(id))
     if (asset) {
@@ -75,6 +101,8 @@ export async function serializeContentMedia(records, kind) {
       publicRecord[legacy] = url
       publicRecord[reference] = { url, width, height, format, alt: record[alt] ?? record.title ?? '' }
     }
+    const parsedBody = parsedBodies[index]
+    if (parsedBody) publicRecord.content = resolveInlineMarkdown(parsedBody, inlineReady)
     return publicRecord
   })
 }
