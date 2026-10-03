@@ -39,37 +39,37 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium-desktop',
-      testMatch: '**/home-smoke.spec.mjs',
+      testMatch: ['**/home-smoke.spec.mjs', '**/home-cinematic.spec.mjs'],
       use: { browserName: 'chromium', viewport: { width: 1440, height: 900 } },
     },
     {
       name: 'firefox-desktop',
-      testMatch: '**/home-smoke.spec.mjs',
+      testMatch: ['**/home-smoke.spec.mjs', '**/home-cinematic.spec.mjs'],
       use: { browserName: 'firefox', viewport: { width: 1366, height: 768 } },
     },
     {
       name: 'webkit-desktop',
-      testMatch: '**/home-smoke.spec.mjs',
+      testMatch: ['**/home-smoke.spec.mjs', '**/home-cinematic.spec.mjs'],
       use: { browserName: 'webkit', viewport: { width: 1440, height: 900 } },
     },
     {
       name: 'iphone-small',
-      testMatch: '**/home-smoke.spec.mjs',
+      testMatch: ['**/home-smoke.spec.mjs', '**/home-cinematic.spec.mjs'],
       use: { ...devices['iPhone SE'], viewport: { width: 375, height: 667 } },
     },
     {
       name: 'iphone-modern',
-      testMatch: '**/home-smoke.spec.mjs',
+      testMatch: ['**/home-smoke.spec.mjs', '**/home-cinematic.spec.mjs'],
       use: { ...devices['iPhone 15'], viewport: { width: 390, height: 844 } },
     },
     {
       name: 'android-small',
-      testMatch: '**/home-smoke.spec.mjs',
+      testMatch: ['**/home-smoke.spec.mjs', '**/home-cinematic.spec.mjs'],
       use: { ...devices['Pixel 7'], viewport: { width: 360, height: 800 } },
     },
     {
       name: 'tablet',
-      testMatch: '**/home-smoke.spec.mjs',
+      testMatch: ['**/home-smoke.spec.mjs', '**/home-cinematic.spec.mjs'],
       use: { ...devices['iPad (gen 7)'], viewport: { width: 768, height: 1024 } },
     },
     {

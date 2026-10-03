@@ -12,6 +12,7 @@
     "check": "npm run lint && npm run test:backend",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.mjs",
     "test:e2e:home": "playwright test --config tests/e2e/home.playwright.config.mjs",
+    "test:e2e:home:cinematic": "playwright test --config tests/e2e/home.playwright.config.mjs --grep @home-cinematic",
     "test:e2e:home:layout": "playwright test --config tests/e2e/home.playwright.config.mjs --grep @home-layout",
     "test:e2e:admin": "npm run test:e2e -- --grep @admin",
     "test:e2e:production": "npm run test:e2e -- --grep @production --project chromium-desktop",

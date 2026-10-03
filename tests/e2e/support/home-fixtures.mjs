@@ -21,6 +21,16 @@ export function createHomeFixtures(identity) {
     githubUrl: '',
     liveUrl: '',
   }]
+  const posts = [{
+    _id: 'home-checkpoint-1b-post',
+    title: 'Checkpoint 1B Fixture Article',
+    slug: 'checkpoint-1b-fixture-article',
+    excerpt: 'Controlled fixture content for the cinematic Home lifecycle check.',
+    category: 'Engineering',
+    tags: [],
+    publishedAt: '2026-10-01T00:00:00.000Z',
+    readingTime: 2,
+  }]
 
   function respond(path) {
     const url = new URL(path, 'http://home-fixture')
@@ -38,8 +48,8 @@ export function createHomeFixtures(identity) {
         status: 200,
         body: {
           success: true,
-          data: [],
-          pagination: { total: 0, page: 1, limit: Number(url.searchParams.get('limit') || 9), pages: 0, hasNext: false, hasPrev: false },
+          data: posts,
+          pagination: { total: posts.length, page: 1, limit: Number(url.searchParams.get('limit') || 9), pages: 1, hasNext: false, hasPrev: false },
         },
       }
     }

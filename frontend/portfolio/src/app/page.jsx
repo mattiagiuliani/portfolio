@@ -1,4 +1,5 @@
 import Universe from '../sections/Universe'
+import CinematicHome from '../components/cinematic/CinematicHome'
 import Navbar from '../components/layout/Navbar'
 import Footer from '../components/layout/Footer'
 import ScrollToLocation from '../components/layout/ScrollToLocation'
@@ -23,7 +24,7 @@ export default async function HomePage() {
   const { data: { settings, projects, preview }, revision } = await getPageSnapshot('/')
 
   return (
-    <>
+    <CinematicHome>
       <Navbar />
       <ScrollToLocation />
       <main data-public-version={revision}>
@@ -38,13 +39,13 @@ export default async function HomePage() {
         }) }} />
         <Hero settings={settings} />
         <Projects projects={projects} />
-        <Universe />
         <About settings={settings} />
         <Skills />
         <BlogPreview posts={preview} />
         <Contact settings={settings} />
+        <Universe />
       </main>
       <Footer />
-    </>
+    </CinematicHome>
   )
 }

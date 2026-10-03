@@ -31,6 +31,7 @@ required.
 | `npm run test:e2e` | Complete browser/device and production suite |
 | `npm run test:e2e:home` | Isolated public Home smoke matrix and focused layout checks |
 | `npm run test:e2e:home:layout` | Breakpoint and landscape checks only |
+| `npm run test:e2e:home:cinematic` | Persistent-video and full-film checks only |
 | `npm run test:e2e:admin` | Seven admin profiles |
 | `npm run test:e2e:production` | Build, SSR, branding, SEO and ISR |
 | `npm run test:e2e:smoke` | Complete admin workflow on Chromium desktop |
@@ -104,8 +105,13 @@ This is browser emulation, not validation on every physical browser, device,
 operating system or vendor browser. Physical-device validation remains separate.
 
 The Home smoke checks fixture identity, Hero, usable navigation, fixture project,
-Contact reachability, horizontal overflow and uncaught page errors. It does not
-assert cinematic/video behavior. Home reports are written to the ignored
+Contact reachability, horizontal overflow and uncaught page errors.
+The cinematic checks (`@home-cinematic`) run in the same seven projects and prove
+that Home owns exactly one `<video>` that is never remounted, reloaded or reset by
+section navigation, that the fixed background never blocks interaction, that the
+full film reuses that same node (focus, Escape, inert background), and that
+reduced-motion and data-saver visitors get the poster without an automatic
+download. Run them alone with `npm run test:e2e:home:cinematic`. Home reports are written to the ignored
 `artifacts/home-*` paths.
 
 Admin checks cover protected routes, login/logout/session restoration, dashboard,
